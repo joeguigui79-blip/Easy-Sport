@@ -224,6 +224,20 @@ img { max-width: 100%; }
   background-clip: text;
 }
 
+.header-author {
+  display: block;
+  font-size: 0.6rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  opacity: 0.55;
+  background: none;
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: var(--text-secondary, #aaa);
+  background-clip: unset;
+  color: var(--text-secondary, #aaa);
+  margin-top: -1px;
+}
+
 .header-right {
   display: flex;
   align-items: center;
