@@ -5,8 +5,8 @@
  */
 
 const AuthManager = {
-  // SHA-256 de 'easy-sport-2024:easysport2024'
-  _HASH: '996064c51ffbcc10f37039c2a425ba6ff8bdc8cc656abd2ec35c774c821818e5',
+  // SHA-256 de 'easy-sport-2024:sport2008'
+  _HASH: 'c301c5c96a4b46cc86f327db3df723c5815b707fa34de0889438097d30ecbf33',
 
   async _hash(password) {
     const encoder = new TextEncoder();
