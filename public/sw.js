@@ -1,4 +1,4 @@
-const CACHE_NAME = 'easy-sport-v3';
+const CACHE_NAME = 'easy-sport-v4';
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 const BASE_WITH_SLASH = BASE_PATH.endsWith('/') ? BASE_PATH : `${BASE_PATH}/`;
 const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
@@ -8,7 +8,7 @@ const ASSETS = [
   toBase('manifest.json'),
   toBase('css/style.css'),
   toBase('js/db.js'),
-  toBase('js/pin.js'),
+  toBase('js/auth.js'),
   toBase('js/exercises.js'),
   toBase('js/workout.js'),
   toBase('js/program.js'),

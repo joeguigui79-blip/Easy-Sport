@@ -1521,9 +1521,9 @@ svg defs { display: none; }
 }
 
 /* ============================================
-   PIN OVERLAY
+   AUTH OVERLAY (verrou mot de passe)
    ============================================ */
-.pin-overlay {
+.auth-overlay {
   position: fixed;
   inset: 0;
   background: var(--bg-primary);
@@ -1534,72 +1534,21 @@ svg defs { display: none; }
   padding: var(--space-lg);
 }
 
-.pin-inner {
+.auth-inner {
   width: 100%;
   max-width: 340px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0;
   transition: transform 0.3s ease, opacity 0.3s ease;
 }
 
-.pin-inner.pin-success {
+.auth-inner.auth-success {
   transform: scale(1.04);
   opacity: 0;
 }
 
-.pin-logo {
-  margin-bottom: 20px;
-  animation: pulse 2.5s infinite;
-}
-
-.pin-title {
-  font-size: var(--font-size-2xl);
-  font-weight: 800;
-  background: var(--grad-primary);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 6px;
-  text-align: center;
-}
-
-.pin-subtitle {
-  font-size: var(--font-size-md);
-  color: var(--text-secondary);
-  margin-bottom: 32px;
-  text-align: center;
-}
-
-/* Indicateurs de saisie */
-.pin-dots {
-  display: flex;
-  gap: 14px;
-  margin-bottom: 36px;
-}
-
-.pin-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--text-muted);
-  background: transparent;
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-}
-
-.pin-dot.filled {
-  background: var(--grad-primary);
-  border-color: transparent;
-}
-
-.pin-dot.active {
-  transform: scale(1.2);
-  border-color: var(--color-primary);
-}
-
-/* Animation secousse (erreur) */
-@keyframes pinShake {
+@keyframes authShake {
   0%   { transform: translateX(0); }
   15%  { transform: translateX(-10px); }
   30%  { transform: translateX(10px); }
@@ -1610,167 +1559,98 @@ svg defs { display: none; }
   100% { transform: translateX(0); }
 }
 
-.pin-dots.pin-shake {
-  animation: pinShake 0.5s ease;
+.auth-inner.auth-shake {
+  animation: authShake 0.45s ease;
 }
 
-.pin-dots.pin-shake .pin-dot {
-  border-color: var(--color-danger) !important;
-  background: rgba(239,68,68,0.2) !important;
-}
-
-/* Clavier numérique */
-.pin-keypad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  width: 100%;
-}
-
-.pin-key {
-  aspect-ratio: 1 / 1;
-  border-radius: 50%;
-  background: var(--bg-card);
-  border: 1.5px solid var(--border-color);
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--text-primary);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.12s ease, transform 0.1s ease, box-shadow 0.12s ease;
-  box-shadow: var(--shadow-card);
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.pin-key:active {
-  background: var(--bg-input);
-  transform: scale(0.9);
-  box-shadow: none;
-}
-
-.pin-key-del {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-  color: var(--text-secondary);
-  font-size: 16px;
-}
-
-.pin-key-del:active {
-  background: var(--bg-input);
-  box-shadow: none;
-}
-
-.pin-key-empty {
-  /* espace vide pour aligner le 0 au centre */
-}
-
-/* Bouton annuler (flux changement PIN) */
-.pin-cancel-btn {
-  margin-top: 28px;
-  font-size: var(--font-size-sm);
-  color: var(--text-muted);
-  padding: 8px 24px;
-  border-radius: var(--radius-full);
-  background: transparent;
-  border: 1px solid var(--border-color);
-  transition: color 0.2s, border-color 0.2s;
-}
-
-.pin-cancel-btn:active {
-  color: var(--text-secondary);
-  border-color: var(--text-secondary);
-}
-
-/* ============================================
-   SETTINGS MODAL
-   ============================================ */
-.settings-modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  z-index: 9000;
-  display: flex;
-  align-items: flex-end;
-  backdrop-filter: blur(4px);
-}
-
-.settings-modal-overlay.hidden {
-  display: none !important;
-}
-
-.settings-sheet {
-  width: 100%;
-  background: var(--bg-secondary);
-  border-radius: 24px 24px 0 0;
-  padding: 20px var(--space-lg) calc(var(--space-lg) + env(safe-area-inset-bottom, 0));
-  animation: slideUp 0.3s ease;
-}
-
-@keyframes slideUp {
-  from { transform: translateY(100%); }
-  to   { transform: translateY(0); }
-}
-
-.settings-sheet-handle {
-  width: 40px;
-  height: 4px;
-  background: var(--border-color);
-  border-radius: 2px;
-  margin: 0 auto 20px;
-}
-
-.settings-sheet-title {
-  font-size: var(--font-size-lg);
-  font-weight: 700;
+.auth-logo {
   margin-bottom: 20px;
-  color: var(--text-primary);
+  animation: pulse 2.5s infinite;
 }
 
-.settings-item {
+.auth-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  background: var(--grad-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.auth-subtitle {
+  font-size: var(--font-size-md);
+  color: var(--text-secondary);
+  margin-bottom: 32px;
+  text-align: center;
+}
+
+.auth-form {
+  width: 100%;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--border-color);
-  cursor: pointer;
-}
-
-.settings-item:last-child {
-  border-bottom: none;
-}
-
-.settings-item-left {
-  display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 12px;
 }
 
-.settings-item-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--grad-soft);
+.auth-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.auth-input-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 14px 14px 14px 44px;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  font-size: var(--font-size-md);
+  color: var(--text-primary);
+  transition: border-color 0.2s ease;
+}
+
+.auth-input:focus {
+  border-color: var(--color-primary);
+}
+
+.auth-input::placeholder {
+  color: var(--text-muted);
+}
+
+.auth-error {
+  font-size: var(--font-size-sm);
+  color: var(--color-danger);
+  text-align: center;
+  min-height: 18px;
+}
+
+.auth-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: var(--color-primary);
-}
-
-.settings-item-label {
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  background: var(--grad-primary);
+  color: white;
   font-size: var(--font-size-md);
-  font-weight: 600;
-  color: var(--text-primary);
+  font-weight: 700;
+  border-radius: var(--radius-lg);
+  border: none;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.1s ease;
+  box-shadow: 0 4px 16px rgba(224,64,251,0.35);
 }
 
-.settings-item-sub {
-  font-size: var(--font-size-xs);
-  color: var(--text-muted);
-  margin-top: 2px;
-}
-
-.settings-item-arrow {
-  color: var(--text-muted);
+.auth-btn:active {
+  opacity: 0.85;
+  transform: scale(0.98);
 }
