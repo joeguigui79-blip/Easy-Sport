@@ -14,6 +14,17 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.svg">
   <link rel="stylesheet" href="css/style.css">
+  <script>
+    // Auto-reload when a new service worker takes control (ensures pin.js is always available)
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', function () {
+        if (!sessionStorage.getItem('sw-reload')) {
+          sessionStorage.setItem('sw-reload', '1');
+          location.reload();
+        }
+      });
+    }
+  </script>
 </head>
 <body class="theme-dark">
 

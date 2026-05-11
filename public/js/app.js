@@ -14,6 +14,9 @@ const App = {
     // PIN auth: must pass before app is shown
     await PinManager.init();
 
+    // Hide splash immediately after PIN so user sees the app content
+    this._hideSplash();
+
     await Exercises.init();
     await Program.init();
     await Stats.init();
@@ -28,7 +31,6 @@ const App = {
 
     await this.loadDashboard();
     this._registerSW();
-    this._hideSplash();
   },
 
   _hideSplash() {
