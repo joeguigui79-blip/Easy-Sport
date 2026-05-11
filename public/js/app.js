@@ -10,6 +10,10 @@ const App = {
 
   async init() {
     await DB.ready();
+
+    // PIN auth: must pass before app is shown
+    await PinManager.init();
+
     await Exercises.init();
     await Program.init();
     await Stats.init();
@@ -20,6 +24,7 @@ const App = {
     this._setupExercisePage();
     this._setupProgramPage();
     this._setupEnergySelector();
+    this._setupSettings();
 
     await this.loadDashboard();
     this._registerSW();
@@ -457,6 +462,35 @@ const App = {
           await Program.generateProgram();
           this.loadProgramPage();
           this.showToast('Nouveau programme genere !', 'success');
+        }
+      });
+    }
+  },
+
+  _setupSettings() {
+    const settingsBtn = document.getElementById('btn-settings');
+    const settingsModal = document.getElementById('settings-modal');
+    const changePinItem = document.getElementById('settings-change-pin');
+
+    if (settingsBtn && settingsModal) {
+      settingsBtn.addEventListener('click', () => {
+        settingsModal.classList.remove('hidden');
+      });
+
+      // Close on overlay click
+      settingsModal.addEventListener('click', (e) => {
+        if (e.target === settingsModal) {
+          settingsModal.classList.add('hidden');
+        }
+      });
+    }
+
+    if (changePinItem) {
+      changePinItem.addEventListener('click', async () => {
+        if (settingsModal) settingsModal.classList.add('hidden');
+        const changed = await PinManager.changePin();
+        if (changed) {
+          this.showToast('PIN modifie avec succes !', 'success');
         }
       });
     }
