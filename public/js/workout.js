@@ -75,6 +75,9 @@ class WorkoutSession {
       });
     }
 
+    const btnCustomize = document.getElementById('btn-customize-workout');
+    if (btnCustomize) btnCustomize.addEventListener('click', () => this._cancelTypeSelection());
+
     if (d.btnLaunch) d.btnLaunch.addEventListener('click', () => this._launch());
     if (d.btnPrev) d.btnPrev.addEventListener('click', () => this.goTo(this.currentIndex - 1));
     if (d.btnNext) d.btnNext.addEventListener('click', () => this.goTo(this.currentIndex + 1));
@@ -145,6 +148,16 @@ class WorkoutSession {
     this.lightMode = level < 3;
     if (this._pendingExercises) {
       this._selectType(this.workoutType); // re-render with updated weights
+    }
+  }
+
+  _cancelTypeSelection() {
+    this.workoutType = null;
+    this._pendingExercises = null;
+    const d = this._dom;
+    if (d.preWorkoutExercises) d.preWorkoutExercises.classList.add('hidden');
+    if (d.workoutTypeGrid) {
+      d.workoutTypeGrid.querySelectorAll('.workout-type-btn').forEach(b => b.classList.remove('selected'));
     }
   }
 
