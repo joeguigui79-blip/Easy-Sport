@@ -19,14 +19,38 @@ const PROGRESSION_STEP = 2.5; // kg
 class ProgramManager {
   constructor() {
     this.currentProgram = null;
+    this._customWeeklyPlan = null;
   }
 
   async init() {
+    // Charger le plan personnalise si existant
+    const raw = await DB.getSetting('weeklyPlanCustom');
+    if (raw) {
+      this._customWeeklyPlan = JSON.parse(raw);
+    }
+
     this.currentProgram = await DB.getActiveProgram();
     if (!this.currentProgram) {
-      await this.generateProgram();
+      await this.generateProgram(this._customWeeklyPlan || DEFAULT_WEEKLY_PLAN);
     }
     return this.currentProgram;
+  }
+
+  getEffectiveWeeklyPlan() {
+    return this._customWeeklyPlan || DEFAULT_WEEKLY_PLAN;
+  }
+
+  async saveCustomWeeklyPlan(dayTypeMap) {
+    // dayTypeMap: { 0: 'rest', 1: 'upper', 2: 'lower', 3: 'rest', ... }
+    const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    const weeklyPlan = Object.entries(dayTypeMap).map(([day, type]) => ({
+      day: parseInt(day),
+      label: DAY_LABELS[parseInt(day)],
+      type
+    }));
+    this._customWeeklyPlan = weeklyPlan;
+    await DB.setSetting('weeklyPlanCustom', JSON.stringify(weeklyPlan));
+    await this.generateProgram(weeklyPlan);
   }
 
   async generateProgram(weeklyPlan = DEFAULT_WEEKLY_PLAN) {
@@ -88,7 +112,7 @@ class ProgramManager {
 
   getTodayType() {
     const today = new Date().getDay();
-    const plan = this.currentProgram ? this.currentProgram.weeklyPlan : DEFAULT_WEEKLY_PLAN;
+    const plan = this.getEffectiveWeeklyPlan();
     const dayPlan = plan.find(d => d.day === today);
     return dayPlan ? dayPlan.type : 'rest';
   }
@@ -181,7 +205,7 @@ class ProgramManager {
   renderWeeklyPlan(container) {
     container.innerHTML = '';
     const today = new Date().getDay();
-    const plan = this.currentProgram ? this.currentProgram.weeklyPlan : DEFAULT_WEEKLY_PLAN;
+    const plan = this.getEffectiveWeeklyPlan();
 
     plan.forEach(dayPlan => {
       const div = document.createElement('div');

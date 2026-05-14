@@ -303,6 +303,7 @@ const WORKOUT_TYPE_ICONS = {
 class ExerciseManager {
   constructor() {
     this._allExercises = null;
+    this._prefs = null; // { upper: [id,...], lower: [...], full: [...], cardio: [...] }
   }
 
   async init() {
@@ -314,6 +315,27 @@ class ExerciseManager {
       }
     }
     await this.refresh();
+    await this.loadPreferences();
+  }
+
+  async loadPreferences() {
+    const raw = await DB.getSetting('workoutExercisePrefs');
+    this._prefs = raw ? JSON.parse(raw) : null;
+  }
+
+  async savePreference(type, enabledIds) {
+    if (!this._prefs) this._prefs = {};
+    this._prefs[type] = enabledIds;
+    await DB.setSetting('workoutExercisePrefs', JSON.stringify(this._prefs));
+  }
+
+  getEnabledForWorkoutType(type) {
+    const all = this.getForWorkoutType(type);
+    if (!this._prefs || !this._prefs[type]) return all;
+    const enabled = this._prefs[type];
+    const filtered = all.filter(ex => enabled.includes(ex.id));
+    // Garantit au moins 1 exercice
+    return filtered.length > 0 ? filtered : all;
   }
 
   async refresh() {

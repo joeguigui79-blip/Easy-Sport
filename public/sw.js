@@ -1,4 +1,4 @@
-const CACHE_NAME = 'easy-sport-v4';
+const CACHE_NAME = 'easy-sport-v5';
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 const BASE_WITH_SLASH = BASE_PATH.endsWith('/') ? BASE_PATH : `${BASE_PATH}/`;
 const toBase = (p) => `${BASE_WITH_SLASH}${p}`;

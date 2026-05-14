@@ -188,7 +188,7 @@ const App = {
     if (next) {
       if (badge) badge.textContent = WORKOUT_TYPE_LABELS[next.type] || next.type;
       if (preview) {
-        const exercises = Exercises.getForWorkoutType(next.type);
+        const exercises = Exercises.getEnabledForWorkoutType(next.type);
         preview.innerHTML = `
           <ul class="workout-preview-list">
             ${exercises.slice(0, 5).map(ex => `
@@ -457,16 +457,123 @@ const App = {
   },
 
   _setupProgramPage() {
-    const genBtn = document.getElementById('btn-generate-program');
-    if (genBtn) {
-      genBtn.addEventListener('click', async () => {
-        if (confirm('Regenerer le programme ? Le programme actuel sera perdu.')) {
-          await Program.generateProgram();
-          this.loadProgramPage();
-          this.showToast('Nouveau programme genere !', 'success');
-        }
+    // Tabs Planning / Exercices
+    document.querySelectorAll('.prog-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.prog-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.prog-tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        const target = document.getElementById('prog-tab-' + tab.dataset.tab);
+        if (target) target.classList.add('active');
+      });
+    });
+
+    // Sous-onglets exercices par type
+    document.querySelectorAll('.extype-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.extype-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this._renderExercisePrefList(tab.dataset.extype);
+      });
+    });
+
+    // Bouton enregistrer programme hebdo
+    const saveBtn = document.getElementById('btn-save-weekly-plan');
+    if (saveBtn) {
+      saveBtn.addEventListener('click', async () => {
+        const dayTypeMap = {};
+        document.querySelectorAll('.day-plan-select').forEach(sel => {
+          dayTypeMap[sel.dataset.day] = sel.value;
+        });
+        await Program.saveCustomWeeklyPlan(dayTypeMap);
+        this.loadProgramPage();
+        this.showToast('Programme enregistre !', 'success');
       });
     }
+  },
+
+  _renderWeekPlanEditor() {
+    const container = document.getElementById('week-plan-editor');
+    if (!container) return;
+
+    const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+    const plan = Program.getEffectiveWeeklyPlan();
+    const planMap = {};
+    plan.forEach(d => { planMap[d.day] = d.type; });
+
+    // Afficher Lun → Dim (1 à 0)
+    const order = [1, 2, 3, 4, 5, 6, 0];
+    container.innerHTML = '';
+
+    order.forEach(dayIdx => {
+      const currentType = planMap[dayIdx] || 'rest';
+      const row = document.createElement('div');
+      row.className = 'day-plan-row';
+      row.innerHTML = `
+        <span class="day-plan-label">${DAY_NAMES[dayIdx]}</span>
+        <select class="day-plan-select form-select" data-day="${dayIdx}">
+          <option value="upper" ${currentType === 'upper' ? 'selected' : ''}>💪 Haut du corps</option>
+          <option value="lower" ${currentType === 'lower' ? 'selected' : ''}>🦵 Bas du corps</option>
+          <option value="full"  ${currentType === 'full'  ? 'selected' : ''}>⚡ Full body</option>
+          <option value="cardio"${currentType === 'cardio'? 'selected' : ''}>🏃 Cardio</option>
+          <option value="rest"  ${currentType === 'rest'  ? 'selected' : ''}>😴 Repos</option>
+        </select>
+      `;
+      container.appendChild(row);
+    });
+  },
+
+  _renderExercisePrefList(type) {
+    const container = document.getElementById('extype-list');
+    if (!container) return;
+
+    const all = Exercises.getForWorkoutType(type);
+    const enabled = Exercises.getEnabledForWorkoutType(type);
+    const enabledIds = enabled.map(e => e.id);
+
+    container.innerHTML = '';
+
+    if (all.length === 0) {
+      container.innerHTML = '<p class="empty-state">Aucun exercice pour ce type</p>';
+      return;
+    }
+
+    all.forEach(ex => {
+      const isOn = enabledIds.includes(ex.id);
+      const item = document.createElement('div');
+      item.className = 'exercise-pref-item';
+      item.innerHTML = `
+        <div class="exercise-pref-info">
+          <div class="exercise-pref-color muscle-${ex.muscle}"></div>
+          <div>
+            <div class="exercise-pref-name">${ex.name}</div>
+            <div class="exercise-pref-muscle">${Exercises.getMuscleEmoji(ex.muscle)} ${Exercises.getMuscleLabel(ex.muscle)}</div>
+          </div>
+        </div>
+        <label class="toggle-switch">
+          <input type="checkbox" class="extype-toggle" data-id="${ex.id}" data-type="${type}" ${isOn ? 'checked' : ''}>
+          <span class="toggle-slider"></span>
+        </label>
+      `;
+      container.appendChild(item);
+    });
+
+    // Bind toggles
+    container.querySelectorAll('.extype-toggle').forEach(chk => {
+      chk.addEventListener('change', async () => {
+        const t = chk.dataset.type;
+        const enabledNow = [...container.querySelectorAll(`.extype-toggle[data-type="${t}"]:checked`)]
+          .map(c => parseInt(c.dataset.id));
+        // Minimum 1
+        if (enabledNow.length === 0) {
+          chk.checked = true;
+          this.showToast('Au moins 1 exercice requis', 'error');
+          return;
+        }
+        await Exercises.savePreference(t, enabledNow);
+        this.showToast('Preferences sauvegardees', 'success');
+      });
+    });
   },
 
   _setupSettings() {
@@ -498,11 +605,20 @@ const App = {
       subtitleEl.textContent = `${start} → ${end}`;
     }
 
-    // Weekly plan
+    // Weekly plan (apercu)
     Program.renderWeeklyPlan(document.getElementById('weekly-plan'));
+
+    // Editeur plan personnalise
+    this._renderWeekPlanEditor();
 
     // Program weeks
     Program.renderProgramWeeks(document.getElementById('program-weeks'));
+
+    // Exercices prefs : charger l'onglet actif
+    const activeExType = document.querySelector('.extype-tab.active');
+    if (activeExType) {
+      this._renderExercisePrefList(activeExType.dataset.extype);
+    }
   },
 
   _registerSW() {

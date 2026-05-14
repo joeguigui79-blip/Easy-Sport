@@ -117,7 +117,7 @@ class WorkoutSession {
 
   _selectType(type) {
     this.workoutType = type;
-    const exercises = Exercises.getForWorkoutType(type);
+    const exercises = Exercises.getEnabledForWorkoutType(type);
     this._pendingExercises = exercises;
 
     const d = this._dom;

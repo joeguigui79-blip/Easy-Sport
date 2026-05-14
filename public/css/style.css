@@ -1668,3 +1668,210 @@ svg defs { display: none; }
   opacity: 0.85;
   transform: scale(0.98);
 }
+
+/* ---- Programme Tabs (Planning / Exercices) ---- */
+.prog-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 0 12px;
+}
+
+.prog-tab {
+  flex: 1;
+  padding: 12px 8px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.prog-tab.active {
+  background: var(--grad-primary);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 4px 16px rgba(224,64,251,0.3);
+}
+
+.prog-tab-content {
+  display: none;
+}
+
+.prog-tab-content.active {
+  display: block;
+}
+
+/* ---- Sous-onglets type de seance ---- */
+.extype-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 0 0 12px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.extype-tab {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.extype-tab.active {
+  background: var(--grad-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+/* ---- Editeur programme hebdomadaire ---- */
+.week-plan-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.day-plan-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.day-plan-label {
+  min-width: 80px;
+  font-size: var(--font-size-md);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.day-plan-select {
+  flex: 1;
+  font-size: var(--font-size-sm);
+  padding: 10px 12px;
+}
+
+/* ---- Liste exercices preferences ---- */
+.exercise-pref-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-bottom: 16px;
+}
+
+.exercise-pref-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  border: 1px solid var(--border-color);
+}
+
+.exercise-pref-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  min-width: 0;
+}
+
+.exercise-pref-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.exercise-pref-name {
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 180px;
+}
+
+.exercise-pref-muscle {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ---- Toggle switch ---- */
+.toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 48px;
+  height: 28px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+
+.toggle-slider {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-input);
+  border-radius: var(--radius-full);
+  transition: background var(--transition-fast);
+  border: 1.5px solid var(--border-color);
+}
+
+.toggle-slider::before {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  left: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--text-muted);
+  border-radius: 50%;
+  transition: all var(--transition-fast);
+}
+
+.toggle-switch input:checked + .toggle-slider {
+  background: var(--grad-primary);
+  border-color: transparent;
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+  left: calc(100% - 23px);
+  background: white;
+}
+
+/* ---- Hint text ---- */
+.hint-text {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* Muscle colors pour les points de pref */
+.exercise-pref-color.muscle-chest     { background: var(--muscle-chest); }
+.exercise-pref-color.muscle-back      { background: var(--muscle-back); }
+.exercise-pref-color.muscle-shoulders { background: var(--muscle-shoulders); }
+.exercise-pref-color.muscle-biceps    { background: var(--muscle-biceps); }
+.exercise-pref-color.muscle-triceps   { background: var(--muscle-triceps); }
+.exercise-pref-color.muscle-quads     { background: var(--muscle-quads); }
+.exercise-pref-color.muscle-hamstrings{ background: var(--muscle-hamstrings); }
+.exercise-pref-color.muscle-glutes    { background: var(--muscle-glutes); }
+.exercise-pref-color.muscle-calves    { background: var(--muscle-calves); }
+.exercise-pref-color.muscle-core      { background: var(--muscle-core); }
+.exercise-pref-color.muscle-cardio    { background: var(--muscle-cardio); }
+
