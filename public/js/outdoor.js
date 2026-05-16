@@ -242,6 +242,9 @@ class OutdoorManager {
         <span>Acquisition GPS en cours...</span>
       </div>
 
+      <!-- Panneau DEBUG visible (sans DevTools) -->
+      <div id="gps-debug-panel" class="gps-debug-panel"></div>
+
       <!-- Boutons Pause / Reprendre / Terminer -->
       <div class="tracking-controls" id="tracking-controls">
         <button class="btn-tracking-pause" id="btn-tracking-pause">
@@ -273,6 +276,12 @@ class OutdoorManager {
     // Init map — use rAF to ensure overlay is rendered before Leaflet measures container
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
+        // Créer et injecter le panneau de debug dans l'overlay
+        const dbgPanel = GPS.createDebugPanel();
+        const dbgPlaceholder = overlay.querySelector('#gps-debug-panel');
+        if (dbgPlaceholder && dbgPanel) {
+          dbgPlaceholder.parentNode.replaceChild(dbgPanel, dbgPlaceholder);
+        }
         GPS.initMap('tracking-map');
       });
     });

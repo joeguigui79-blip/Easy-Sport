@@ -2397,6 +2397,7 @@ body.cat-exterieur {
   width: 100%;
   height: 100%;
   min-height: 320px;
+  background: #ddd; /* fond clair: visible si tuiles OSM absentes (au lieu du fond noir du theme) */
 }
 
 /* Map fullscreen */
@@ -2699,5 +2700,54 @@ body.cat-exterieur {
 @media (min-width: 600px) {
   .tracking-map-wrapper { height: 400px; min-height: 400px; }
   .tracking-map { min-height: 400px; }
+}
+
+/* ---- Panneau de debug GPS (visible sans DevTools) ---- */
+.gps-debug-panel {
+  position: relative;
+  z-index: 9050;
+  background: rgba(0, 0, 0, 0.78);
+  border-top: 1px solid rgba(255,255,255,0.12);
+  padding: 6px 10px 8px;
+  flex-shrink: 0;
+}
+.gps-debug-panel.dbg-hidden { display: none; }
+.dbg-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+.dbg-title {
+  font-size: 10px;
+  font-weight: 800;
+  color: #facc15;
+  letter-spacing: 1px;
+  flex: 1;
+}
+.dbg-btn {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 7px;
+  cursor: pointer;
+  line-height: 1.4;
+}
+.dbg-btn.dbg-close {
+  background: rgba(239,68,68,0.3);
+  border-color: rgba(239,68,68,0.5);
+  color: #fca5a5;
+  font-weight: 700;
+}
+.dbg-content {
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 11px;
+  color: #e2e8f0;
+  line-height: 1.5;
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
 }
 

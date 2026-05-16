@@ -1,4 +1,4 @@
-const CACHE_NAME = 'easy-sport-v10';
+const CACHE_NAME = 'easy-sport-v11';
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 const BASE_WITH_SLASH = BASE_PATH.endsWith('/') ? BASE_PATH : `${BASE_PATH}/`;
 const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
@@ -6,25 +6,20 @@ const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
 // App assets (cache-first)
 const ASSETS = [
   BASE_WITH_SLASH,
-  toBase('index.html?v=7'),
+  toBase('index.html?v=8'),
   toBase('manifest.json?v=5'),
-  toBase('css/style.css?v=7'),
+  toBase('css/style.css?v=8'),
   toBase('js/db.js?v=6'),
   toBase('js/auth.js?v=5'),
   toBase('js/exercises.js?v=5'),
   toBase('js/workout.js?v=5'),
   toBase('js/program.js?v=5'),
   toBase('js/stats.js?v=5'),
-  toBase('js/gps-tracker.js?v=7'),
-  toBase('js/outdoor.js?v=7'),
+  toBase('js/gps-tracker.js?v=8'),
+  toBase('js/outdoor.js?v=8'),
   toBase('js/app.js?v=5'),
   toBase('icons/icon-192.svg'),
   toBase('icons/icon-512.svg')
-];
-
-// External CDN URLs (Leaflet) — network-first (not in ASSETS cache)
-const CDN_ORIGINS = [
-  'https://unpkg.com'
 ];
 
 // Install: cache all app assets
@@ -47,38 +42,26 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Fetch: cache-first for app assets, network-first for CDN (Leaflet)
+// Fetch: BYPASS COMPLET pour tout CDN externe — laisser le navigateur gérer
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
   if (!e.request.url.startsWith('http')) return;
 
   const url = new URL(e.request.url);
 
-  // Network-first for CDN resources (Leaflet tiles + JS/CSS)
-  const isCDN = CDN_ORIGINS.some(origin => url.origin === origin);
-  const isOSMTile = url.hostname.endsWith('.tile.openstreetmap.org');
-
-  if (isCDN) {
-    // Network-first, fallback to cache
-    e.respondWith(
-      fetch(e.request).then((response) => {
-        if (response && response.status === 200) {
-          const toCache = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, toCache));
-        }
-        return response;
-      }).catch(() => caches.match(e.request))
-    );
-    return;
+  // *** BYPASS TOTAL pour CDN externes (tuiles OSM, Leaflet, CartoCDN) ***
+  // Ne pas appeler e.respondWith() = le navigateur fait la requête directement
+  if (
+    url.hostname.includes('tile.openstreetmap.org') ||
+    url.hostname.includes('unpkg.com') ||
+    url.hostname.includes('basemaps.cartocdn.com') ||
+    url.hostname.includes('tile.opentopomap.org') ||
+    url.hostname.includes('stamen-tiles.a.ssl.fastly.net')
+  ) {
+    return; // BYPASS — pas d'e.respondWith()
   }
 
-  // Map tiles: network-first, no caching (avoids quota issues)
-  if (isOSMTile) {
-    e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
-    return;
-  }
-
-  // Cache-first for app assets
+  // Cache-first pour les assets de l'app
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached;
