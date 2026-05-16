@@ -1,11 +1,13 @@
 /**
  * app.js - Main application controller
  * Routing, navigation, dashboard, initialization
+ * Phase A: 3 categories (salle, interieur, exterieur)
  */
 
 const App = {
   currentPage: 'dashboard',
   energyLevel: 3,
+  activeCategory: null,  // 'salle' | 'interieur' | 'exterieur' | null (home)
   _toastTimer: null,
 
   async init() {
@@ -19,15 +21,17 @@ const App = {
 
     await Exercises.init();
     await Program.init();
+    await Outdoor.init();
     await Stats.init();
     Workout.init();
 
     this._setupTheme();
     this._setupNavigation();
+    this._setupCategoryHome();
     this._setupExercisePage();
     this._setupProgramPage();
     this._setupEnergySelector();
-    this._setupSettings();
+    this._setupOutdoorPage();
 
     await this.loadDashboard();
     this._registerSW();
@@ -39,9 +43,7 @@ const App = {
     setTimeout(() => {
       splash.classList.add('hide');
       app.classList.remove('hidden');
-      setTimeout(() => {
-        splash.style.display = 'none';
-      }, 500);
+      setTimeout(() => { splash.style.display = 'none'; }, 500);
     }, 1200);
   },
 
@@ -50,7 +52,6 @@ const App = {
     const themeIcon = document.getElementById('theme-icon');
     let isDark = true;
 
-    // Load saved theme
     DB.getSetting('theme').then(saved => {
       if (saved === 'light') {
         isDark = false;
@@ -80,6 +81,65 @@ const App = {
     }
   },
 
+  // ---- CATEGORY HOME SCREEN ----
+
+  _setupCategoryHome() {
+    document.querySelectorAll('.category-card').forEach(card => {
+      card.addEventListener('click', () => {
+        this._enterCategory(card.dataset.category);
+      });
+    });
+  },
+
+  _enterCategory(category) {
+    this.activeCategory = category;
+    const homeEl = document.getElementById('category-home');
+    const appContent = document.getElementById('category-content');
+    if (homeEl) homeEl.classList.add('hidden');
+    if (appContent) appContent.classList.remove('hidden');
+
+    // Update tab bar + header title
+    const label = CATEGORY_LABELS[category] || 'Sport';
+    const icon = CATEGORY_ICONS[category] || '';
+    this.setHeader(`${icon} ${label}`, false);
+
+    // Update body class for category colors
+    document.body.className = document.body.className.replace(/\bcat-\S+/g, '');
+    document.body.classList.add(`cat-${category}`);
+
+    // Show back-to-home button
+    const btnHome = document.getElementById('btn-category-home');
+    if (btnHome) btnHome.classList.remove('hidden');
+
+    // Adapt tab-bar for category
+    const tabWorkout = document.getElementById('tab-btn-workout');
+    const tabOutdoor = document.getElementById('tab-btn-outdoor');
+    if (category === 'exterieur') {
+      if (tabWorkout) tabWorkout.classList.add('hidden');
+      if (tabOutdoor) tabOutdoor.classList.remove('hidden');
+    } else {
+      if (tabWorkout) tabWorkout.classList.remove('hidden');
+      if (tabOutdoor) tabOutdoor.classList.add('hidden');
+    }
+
+    // Navigate to dashboard of this category
+    this.navigate('dashboard');
+  },
+
+  _exitToHome() {
+    this.activeCategory = null;
+    const homeEl = document.getElementById('category-home');
+    const appContent = document.getElementById('category-content');
+    if (homeEl) homeEl.classList.remove('hidden');
+    if (appContent) appContent.classList.add('hidden');
+
+    this.setHeader('Easy Sport', false);
+    document.body.className = document.body.className.replace(/\bcat-\S+/g, '');
+
+    const btnHome = document.getElementById('btn-category-home');
+    if (btnHome) btnHome.classList.add('hidden');
+  },
+
   _setupNavigation() {
     // Tab bar buttons
     document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -89,7 +149,7 @@ const App = {
       });
     });
 
-    // Back button
+    // Back button (within active section)
     const backBtn = document.getElementById('btn-back');
     if (backBtn) {
       backBtn.addEventListener('click', () => {
@@ -97,19 +157,33 @@ const App = {
           this.navigate('workout');
         } else {
           this.navigate('dashboard');
-          this.setHeader('Easy Sport', false);
+          this.setHeader(
+            this.activeCategory ? `${CATEGORY_ICONS[this.activeCategory]} ${CATEGORY_LABELS[this.activeCategory]}` : 'Easy Sport',
+            false
+          );
         }
       });
+    }
+
+    // Return to category home
+    const btnHome = document.getElementById('btn-category-home');
+    if (btnHome) {
+      btnHome.addEventListener('click', () => this._exitToHome());
     }
 
     // Dashboard start workout button
     const startBtn = document.getElementById('btn-start-next-workout');
     if (startBtn) {
       startBtn.addEventListener('click', () => {
-        const next = Program.getNextWorkout();
-        this.navigate('workout');
-        if (next && next.type !== 'rest') {
-          setTimeout(() => Workout.startWorkoutOfType(next.type), 100);
+        const cat = this.activeCategory || 'salle';
+        if (cat === 'exterieur') {
+          this.navigate('outdoor');
+        } else {
+          const next = Program.getNextWorkout();
+          this.navigate('workout');
+          if (next && next.type !== 'rest') {
+            setTimeout(() => Workout.startWorkoutOfType(next.type), 100);
+          }
         }
       });
     }
@@ -138,12 +212,25 @@ const App = {
       btn.classList.toggle('active', btn.dataset.page === page);
     });
 
+    const cat = this.activeCategory || 'salle';
+    const catLabel = CATEGORY_LABELS[cat] || 'Sport';
+    const catIcon = CATEGORY_ICONS[cat] || '';
+
     // Page-specific logic
     if (page === 'dashboard') {
       this.loadDashboard();
-      this.setHeader('Easy Sport', false);
+      this.setHeader(`${catIcon} ${catLabel}`, false);
     } else if (page === 'workout') {
-      this.setHeader('Seance', !Workout.active ? false : true);
+      if (cat === 'interieur') {
+        this.setHeader('Seance interieure', !Workout.active);
+        this._renderWorkoutTypesForCategory('interieur');
+      } else {
+        this.setHeader('Seance', !Workout.active);
+        this._renderWorkoutTypesForCategory('salle');
+      }
+    } else if (page === 'outdoor') {
+      this.setHeader('🏃 Sport exterieur', false);
+      this.loadOutdoorPage();
     } else if (page === 'program') {
       this.setHeader('Programme', false);
       this.loadProgramPage();
@@ -152,8 +239,43 @@ const App = {
       this.loadExercisesPage();
     } else if (page === 'stats') {
       this.setHeader('Statistiques', false);
-      Stats.renderAll();
+      Stats.renderAll(cat);
     }
+  },
+
+  _renderWorkoutTypesForCategory(cat) {
+    const grid = document.getElementById('workout-type-grid');
+    if (!grid) return;
+
+    grid.innerHTML = '';
+
+    const types = cat === 'interieur'
+      ? [
+          { type: 'upper_int', icon: '💪', label: 'Haut du corps' },
+          { type: 'lower_int', icon: '🦵', label: 'Bas du corps' },
+          { type: 'full_int', icon: '⚡', label: 'Full body' },
+          { type: 'hiit_int', icon: '🔥', label: 'HIIT' },
+          { type: 'yoga_int', icon: '🧘', label: 'Yoga / Mobilite' }
+        ]
+      : [
+          { type: 'upper', icon: '💪', label: 'Haut du corps' },
+          { type: 'lower', icon: '🦵', label: 'Bas du corps' },
+          { type: 'full', icon: '⚡', label: 'Full body' },
+          { type: 'cardio', icon: '🏃', label: 'Cardio' }
+        ];
+
+    types.forEach(t => {
+      const btn = document.createElement('button');
+      btn.className = `workout-type-btn workout-type-btn--${cat}`;
+      btn.dataset.type = t.type;
+      btn.innerHTML = `<span class="wt-icon">${t.icon}</span><span class="wt-label">${t.label}</span>`;
+      btn.addEventListener('click', () => {
+        grid.querySelectorAll('.workout-type-btn').forEach(b => b.classList.remove('selected'));
+        btn.classList.add('selected');
+        Workout._selectType(t.type);
+      });
+      grid.appendChild(btn);
+    });
   },
 
   setHeader(title, showBack) {
@@ -164,6 +286,8 @@ const App = {
   },
 
   async loadDashboard() {
+    const cat = this.activeCategory || 'salle';
+
     // Greeting
     const greetingEl = document.getElementById('greeting-text');
     if (greetingEl) {
@@ -174,12 +298,33 @@ const App = {
       greetingEl.textContent = greeting + ' ! 💪';
     }
 
+    // Category badge in hero
+    const catBadgeEl = document.getElementById('dashboard-cat-badge');
+    if (catBadgeEl) {
+      catBadgeEl.textContent = `${CATEGORY_ICONS[cat]} ${CATEGORY_LABELS[cat]}`;
+      catBadgeEl.className = `dashboard-cat-badge cat-badge--${cat}`;
+    }
+
     // Streak & stats
-    const info = await Stats.getStreakInfo();
+    const info = await Stats.getStreakInfo(cat);
     this._setText('streak-value', info.streak);
     this._setText('week-sessions', info.weekSessions);
     this._setText('total-sessions', info.totalSessions);
 
+    if (cat === 'exterieur') {
+      this._renderDashboardOutdoor();
+    } else {
+      this._renderDashboardTraining(cat);
+    }
+
+    // Energy / fatigue alert (salle + interieur only)
+    const fatigueAlert = document.getElementById('fatigue-alert');
+    if (fatigueAlert) {
+      fatigueAlert.classList.toggle('hidden', cat === 'exterieur' || this.energyLevel >= 3);
+    }
+  },
+
+  async _renderDashboardTraining(cat) {
     // Next workout
     const next = Program.getNextWorkout();
     const badge = document.getElementById('next-workout-type');
@@ -195,7 +340,7 @@ const App = {
               <li class="workout-preview-item">
                 <div class="workout-preview-dot muscle-${ex.muscle}"></div>
                 <span>${ex.name}</span>
-                <small style="color:var(--text-muted)">${ex.defaultSets}×${ex.defaultReps}</small>
+                <small style="color:var(--text-muted)">${ex.defaultSets}x${ex.defaultReps}</small>
               </li>
             `).join('')}
             ${exercises.length > 5 ? `<li class="workout-preview-item" style="color:var(--text-muted)">+${exercises.length - 5} autres...</li>` : ''}
@@ -211,18 +356,14 @@ const App = {
     this._renderWeekGrid();
 
     // Recent progress
-    const progress = await Stats.getRecentProgress();
+    const progress = await Stats.getRecentProgress(cat);
     const progressContainer = document.getElementById('recent-progress');
     if (progressContainer) {
       if (progress.length > 0) {
         progressContainer.innerHTML = progress.map(p => `
           <div class="progress-item">
-            <div>
-              <div class="progress-item-name">${p.name}</div>
-            </div>
-            <div>
-              <div class="progress-item-val">${p.weight > 0 ? p.weight + ' kg' : '-'}</div>
-            </div>
+            <div><div class="progress-item-name">${p.name}</div></div>
+            <div><div class="progress-item-val">${p.weight > 0 ? p.weight + ' kg' : '-'}</div></div>
           </div>
         `).join('');
       } else {
@@ -230,9 +371,54 @@ const App = {
       }
     }
 
-    // Energy / fatigue alert
-    if (this.energyLevel < 3) {
-      document.getElementById('fatigue-alert').classList.remove('hidden');
+    // Show training section, hide outdoor section
+    const trainSec = document.getElementById('dashboard-training-section');
+    const outdoorSec = document.getElementById('dashboard-outdoor-section');
+    if (trainSec) trainSec.classList.remove('hidden');
+    if (outdoorSec) outdoorSec.classList.add('hidden');
+  },
+
+  async _renderDashboardOutdoor() {
+    // Hide training section, show outdoor section
+    const trainSec = document.getElementById('dashboard-training-section');
+    const outdoorSec = document.getElementById('dashboard-outdoor-section');
+    if (trainSec) trainSec.classList.add('hidden');
+    if (outdoorSec) outdoorSec.classList.remove('hidden');
+
+    const sessions = Outdoor.getAll();
+    const stats7d = Outdoor.getStats(sessions, '7d');
+    const stats30d = Outdoor.getStats(sessions, '30d');
+
+    const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    el('outdoor-stat-km-7d', stats7d.totalKm.toFixed(1));
+    el('outdoor-stat-min-7d', stats7d.totalMin);
+    el('outdoor-stat-count-7d', stats7d.count);
+
+    el('outdoor-stat-km-30d', stats30d.totalKm.toFixed(1));
+    el('outdoor-stat-min-30d', stats30d.totalMin);
+    el('outdoor-stat-count-30d', stats30d.count);
+
+    // Last 3 sessions
+    const recentEl = document.getElementById('outdoor-recent-list');
+    if (recentEl) {
+      if (sessions.length === 0) {
+        recentEl.innerHTML = '<p class="empty-state">Aucune seance enregistree</p>';
+      } else {
+        recentEl.innerHTML = '';
+        sessions.slice(0, 3).forEach(s => {
+          const d = new Date(s.date);
+          const dateStr = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+          const item = document.createElement('div');
+          item.className = 'outdoor-mini-item';
+          item.innerHTML = `
+            <span class="omi-icon">${Outdoor.getActivityIcon(s.activity)}</span>
+            <span class="omi-name">${Outdoor.getActivityLabel(s.activity)}</span>
+            <span class="omi-val">${s.durationMin}min${s.distanceKm ? ' • ' + s.distanceKm + 'km' : ''}</span>
+            <span class="omi-date">${dateStr}</span>
+          `;
+          recentEl.appendChild(item);
+        });
+      }
     }
   },
 
@@ -249,12 +435,13 @@ const App = {
       const dayPlan = plan.find(d => d.day === i);
       const isToday = i === today;
       const isRest = !dayPlan || dayPlan.type === 'rest';
+      const cat = dayPlan ? (dayPlan.category || 'salle') : 'salle';
 
       const div = document.createElement('div');
       div.className = 'week-day';
       div.innerHTML = `
         <div class="week-day-label">${label}</div>
-        <div class="week-day-dot ${isToday ? 'today' : ''} ${isRest ? 'rest' : ''}">
+        <div class="week-day-dot ${isToday ? 'today' : ''} ${isRest ? 'rest' : ''} wdd--${cat}">
           ${isRest ? '−' : (WORKOUT_TYPE_ICONS[dayPlan.type] || '?')}
         </div>
       `;
@@ -270,25 +457,16 @@ const App = {
         this.energyLevel = val;
         Workout.setEnergyLevel(val);
 
-        // Update visual
-        stars.forEach((s, i) => {
-          s.classList.toggle('active', i < val);
-        });
+        stars.forEach((s, i) => { s.classList.toggle('active', i < val); });
 
-        // Fatigue alert
         const alert = document.getElementById('fatigue-alert');
-        if (val < 3) {
-          alert.classList.remove('hidden');
-        } else {
-          alert.classList.add('hidden');
-        }
+        if (alert) alert.classList.toggle('hidden', val >= 3);
 
         DB.setSetting('lastEnergy', val);
         this.showToast(`Energie : ${val}/5`);
       });
     });
 
-    // Restore saved energy
     DB.getSetting('lastEnergy').then(saved => {
       if (saved) {
         const val = parseInt(saved);
@@ -296,6 +474,43 @@ const App = {
       }
     });
   },
+
+  // ---- OUTDOOR PAGE ----
+
+  _setupOutdoorPage() {
+    const addBtn = document.getElementById('btn-add-outdoor-session');
+    if (addBtn) {
+      addBtn.addEventListener('click', () => {
+        Outdoor.renderFormModal(null, () => this.loadOutdoorPage(), null);
+      });
+    }
+  },
+
+  loadOutdoorPage() {
+    const container = document.getElementById('outdoor-session-list');
+    if (container) {
+      Outdoor.renderSessionList(container,
+        (session) => {
+          Outdoor.renderFormModal(session, () => this.loadOutdoorPage(), null);
+        },
+        () => this.loadOutdoorPage()
+      );
+    }
+
+    // Stats
+    const sessions = Outdoor.getAll();
+    const stats7d = Outdoor.getStats(sessions, '7d');
+    const stats30d = Outdoor.getStats(sessions, '30d');
+    const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    el('outdoor-page-km-7d', stats7d.totalKm.toFixed(1));
+    el('outdoor-page-min-7d', stats7d.totalMin);
+    el('outdoor-page-count-7d', stats7d.count);
+    el('outdoor-page-km-30d', stats30d.totalKm.toFixed(1));
+    el('outdoor-page-min-30d', stats30d.totalMin);
+    el('outdoor-page-count-30d', stats30d.count);
+  },
+
+  // ---- EXERCISES PAGE ----
 
   _setupExercisePage() {
     const search = document.getElementById('exercise-search');
@@ -308,7 +523,8 @@ const App = {
     const renderList = () => {
       const list = document.getElementById('exercise-list');
       if (!list) return;
-      let exercises = Exercises.getByMuscle(currentFilter);
+      const cat = this.activeCategory || 'salle';
+      let exercises = Exercises.getByMuscle(currentFilter, cat);
       if (currentSearch) {
         exercises = exercises.filter(ex =>
           ex.name.toLowerCase().includes(currentSearch.toLowerCase()) ||
@@ -373,7 +589,6 @@ const App = {
       }
     });
 
-    // Store renderList for later use
     this._renderExerciseList = renderList;
   },
 
@@ -413,15 +628,19 @@ const App = {
 
   _showExerciseForm(ex) {
     const modal = document.getElementById('exercise-form-modal');
+    const cat = this.activeCategory || 'salle';
     document.getElementById('form-modal-title').textContent = ex ? 'Modifier l\'exercice' : 'Ajouter un exercice';
     document.getElementById('form-ex-id').value = ex ? ex.id : '';
     document.getElementById('form-ex-name').value = ex ? ex.name : '';
     document.getElementById('form-ex-muscle').value = ex ? ex.muscle : '';
     document.getElementById('form-ex-sets').value = ex ? ex.defaultSets : 3;
     document.getElementById('form-ex-reps').value = ex ? ex.defaultReps : 10;
-    document.getElementById('form-ex-weight').value = ex ? ex.defaultWeight : 20;
+    document.getElementById('form-ex-weight').value = ex ? ex.defaultWeight : 0;
     document.getElementById('form-ex-type').value = ex ? ex.type : 'strength';
     document.getElementById('form-ex-notes').value = ex ? (ex.notes || '') : '';
+    // Store category in hidden field
+    const catField = document.getElementById('form-ex-category');
+    if (catField) catField.value = ex ? (ex.category || cat) : cat;
     modal.classList.remove('hidden');
   },
 
@@ -434,6 +653,9 @@ const App = {
       return;
     }
 
+    const catField = document.getElementById('form-ex-category');
+    const cat = catField ? catField.value : (this.activeCategory || 'salle');
+
     const data = {
       name,
       muscle,
@@ -441,7 +663,8 @@ const App = {
       defaultSets: parseInt(document.getElementById('form-ex-sets').value) || 3,
       defaultReps: parseInt(document.getElementById('form-ex-reps').value) || 10,
       defaultWeight: parseFloat(document.getElementById('form-ex-weight').value) || 0,
-      notes: document.getElementById('form-ex-notes').value.trim()
+      notes: document.getElementById('form-ex-notes').value.trim(),
+      category: cat
     };
 
     const id = document.getElementById('form-ex-id').value;
@@ -455,6 +678,8 @@ const App = {
 
     document.getElementById('exercise-form-modal').classList.add('hidden');
   },
+
+  // ---- PROGRAM PAGE ----
 
   _setupProgramPage() {
     // Tabs Planning / Exercices
@@ -481,11 +706,16 @@ const App = {
     const saveBtn = document.getElementById('btn-save-weekly-plan');
     if (saveBtn) {
       saveBtn.addEventListener('click', async () => {
-        const dayTypeMap = {};
+        const dayInfoMap = {};
         document.querySelectorAll('.day-plan-select').forEach(sel => {
-          dayTypeMap[sel.dataset.day] = sel.value;
+          dayInfoMap[sel.dataset.day] = {
+            type: sel.value,
+            category: sel.closest('.day-plan-row') ?
+              (sel.closest('.day-plan-row').querySelector('.day-cat-select')?.value || 'salle') :
+              'salle'
+          };
         });
-        await Program.saveCustomWeeklyPlan(dayTypeMap);
+        await Program.saveCustomWeeklyPlan(dayInfoMap);
         this.loadProgramPage();
         this.showToast('Programme enregistre !', 'success');
       });
@@ -499,24 +729,34 @@ const App = {
     const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
     const plan = Program.getEffectiveWeeklyPlan();
     const planMap = {};
-    plan.forEach(d => { planMap[d.day] = d.type; });
+    plan.forEach(d => { planMap[d.day] = { type: d.type, category: d.category || 'salle' }; });
 
-    // Afficher Lun → Dim (1 à 0)
     const order = [1, 2, 3, 4, 5, 6, 0];
     container.innerHTML = '';
 
     order.forEach(dayIdx => {
-      const currentType = planMap[dayIdx] || 'rest';
+      const current = planMap[dayIdx] || { type: 'rest', category: 'salle' };
       const row = document.createElement('div');
       row.className = 'day-plan-row';
       row.innerHTML = `
         <span class="day-plan-label">${DAY_NAMES[dayIdx]}</span>
+        <select class="day-cat-select form-select day-cat-select-sm" data-day="${dayIdx}" title="Categorie">
+          <option value="salle" ${current.category === 'salle' ? 'selected' : ''}>🏋️</option>
+          <option value="interieur" ${current.category === 'interieur' ? 'selected' : ''}>🏠</option>
+          <option value="exterieur" ${current.category === 'exterieur' ? 'selected' : ''}>🏃</option>
+        </select>
         <select class="day-plan-select form-select" data-day="${dayIdx}">
-          <option value="upper" ${currentType === 'upper' ? 'selected' : ''}>💪 Haut du corps</option>
-          <option value="lower" ${currentType === 'lower' ? 'selected' : ''}>🦵 Bas du corps</option>
-          <option value="full"  ${currentType === 'full'  ? 'selected' : ''}>⚡ Full body</option>
-          <option value="cardio"${currentType === 'cardio'? 'selected' : ''}>🏃 Cardio</option>
-          <option value="rest"  ${currentType === 'rest'  ? 'selected' : ''}>😴 Repos</option>
+          <option value="upper"   ${current.type === 'upper'   ? 'selected' : ''}>💪 Haut</option>
+          <option value="lower"   ${current.type === 'lower'   ? 'selected' : ''}>🦵 Bas</option>
+          <option value="full"    ${current.type === 'full'    ? 'selected' : ''}>⚡ Full body</option>
+          <option value="cardio"  ${current.type === 'cardio'  ? 'selected' : ''}>🏃 Cardio</option>
+          <option value="upper_int" ${current.type === 'upper_int' ? 'selected' : ''}>💪 Haut (int.)</option>
+          <option value="lower_int" ${current.type === 'lower_int' ? 'selected' : ''}>🦵 Bas (int.)</option>
+          <option value="full_int"  ${current.type === 'full_int'  ? 'selected' : ''}>⚡ Full (int.)</option>
+          <option value="hiit_int"  ${current.type === 'hiit_int'  ? 'selected' : ''}>🔥 HIIT</option>
+          <option value="yoga_int"  ${current.type === 'yoga_int'  ? 'selected' : ''}>🧘 Yoga</option>
+          <option value="running"   ${current.type === 'running'   ? 'selected' : ''}>🏃 Running</option>
+          <option value="rest"    ${current.type === 'rest'    ? 'selected' : ''}>😴 Repos</option>
         </select>
       `;
       container.appendChild(row);
@@ -558,13 +798,11 @@ const App = {
       container.appendChild(item);
     });
 
-    // Bind toggles
     container.querySelectorAll('.extype-toggle').forEach(chk => {
       chk.addEventListener('change', async () => {
         const t = chk.dataset.type;
         const enabledNow = [...container.querySelectorAll(`.extype-toggle[data-type="${t}"]:checked`)]
           .map(c => parseInt(c.dataset.id));
-        // Minimum 1
         if (enabledNow.length === 0) {
           chk.checked = true;
           this.showToast('Au moins 1 exercice requis', 'error');
@@ -576,18 +814,13 @@ const App = {
     });
   },
 
-  _setupSettings() {
-    // Settings modal removed (no PIN management needed)
-  },
-
   loadProgramPage() {
     const prog = Program.currentProgram;
     if (!prog) return;
 
-    // Cycle info
     const pct = Program.getCycleProgress();
     const ringEl = document.getElementById('cycle-ring-fill');
-    const circumference = 2 * Math.PI * 24; // r=24, circumference=150.79
+    const circumference = 2 * Math.PI * 24;
     if (ringEl) ringEl.style.strokeDashoffset = circumference * (1 - pct / 100);
 
     const pctEl = document.getElementById('cycle-progress-pct');
@@ -605,16 +838,10 @@ const App = {
       subtitleEl.textContent = `${start} → ${end}`;
     }
 
-    // Weekly plan (apercu)
     Program.renderWeeklyPlan(document.getElementById('weekly-plan'));
-
-    // Editeur plan personnalise
     this._renderWeekPlanEditor();
-
-    // Program weeks
     Program.renderProgramWeeks(document.getElementById('program-weeks'));
 
-    // Exercices prefs : charger l'onglet actif
     const activeExType = document.querySelector('.extype-tab.active');
     if (activeExType) {
       this._renderExercisePrefList(activeExType.dataset.extype);

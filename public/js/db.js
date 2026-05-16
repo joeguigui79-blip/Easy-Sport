@@ -1,16 +1,17 @@
 /**
  * db.js - IndexedDB wrapper for Easy Sport
- * Stores: exercises, workouts, programs, settings
+ * Stores: exercises, workouts, programs, settings, outdoorSessions
  */
 
 const DB_NAME = 'EasySportDB';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
 const STORES = {
   EXERCISES: 'exercises',
   WORKOUTS: 'workouts',
   PROGRAMS: 'programs',
-  SETTINGS: 'settings'
+  SETTINGS: 'settings',
+  OUTDOOR_SESSIONS: 'outdoorSessions'
 };
 
 class EasySportDB {
@@ -49,6 +50,13 @@ class EasySportDB {
         // Settings store (key-value)
         if (!db.objectStoreNames.contains(STORES.SETTINGS)) {
           db.createObjectStore(STORES.SETTINGS, { keyPath: 'key' });
+        }
+
+        // Outdoor sessions store (Phase A: manual entry)
+        if (!db.objectStoreNames.contains(STORES.OUTDOOR_SESSIONS)) {
+          const oStore = db.createObjectStore(STORES.OUTDOOR_SESSIONS, { keyPath: 'id', autoIncrement: true });
+          oStore.createIndex('date', 'date', { unique: false });
+          oStore.createIndex('activity', 'activity', { unique: false });
         }
       };
 
@@ -199,6 +207,31 @@ class EasySportDB {
     const map = {};
     all.forEach(s => { map[s.key] = s.value; });
     return map;
+  }
+
+  // ---- OUTDOOR SESSIONS ----
+
+  async addOutdoorSession(session) {
+    await this.ready();
+    const store = this._tx(STORES.OUTDOOR_SESSIONS, 'readwrite');
+    return this._promisify(store.add({ ...session, savedAt: Date.now() }));
+  }
+
+  async getAllOutdoorSessions() {
+    await this.ready();
+    return this._promisify(this._tx(STORES.OUTDOOR_SESSIONS).getAll());
+  }
+
+  async updateOutdoorSession(session) {
+    await this.ready();
+    const store = this._tx(STORES.OUTDOOR_SESSIONS, 'readwrite');
+    return this._promisify(store.put(session));
+  }
+
+  async deleteOutdoorSession(id) {
+    await this.ready();
+    const store = this._tx(STORES.OUTDOOR_SESSIONS, 'readwrite');
+    return this._promisify(store.delete(id));
   }
 }
 

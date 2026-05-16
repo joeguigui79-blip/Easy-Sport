@@ -1,20 +1,20 @@
 /**
  * program.js - Programme generator and manager
- * 4-week cycle: Lun=Haut, Mar=Bas, Mer=Repos, Jeu=Full, Ven=Repos, Sam=Haut, Dim=Repos
+ * Supports multi-category sessions: salle, interieur, exterieur
  */
 
 const DEFAULT_WEEKLY_PLAN = [
-  { day: 0, label: 'Dim', type: 'rest' },
-  { day: 1, label: 'Lun', type: 'upper' },
-  { day: 2, label: 'Mar', type: 'lower' },
-  { day: 3, label: 'Mer', type: 'rest' },
-  { day: 4, label: 'Jeu', type: 'full' },
-  { day: 5, label: 'Ven', type: 'rest' },
-  { day: 6, label: 'Sam', type: 'upper' }
+  { day: 0, label: 'Dim', type: 'rest', category: 'salle' },
+  { day: 1, label: 'Lun', type: 'upper', category: 'salle' },
+  { day: 2, label: 'Mar', type: 'lower', category: 'salle' },
+  { day: 3, label: 'Mer', type: 'rest', category: 'salle' },
+  { day: 4, label: 'Jeu', type: 'full', category: 'salle' },
+  { day: 5, label: 'Ven', type: 'rest', category: 'salle' },
+  { day: 6, label: 'Sam', type: 'upper', category: 'salle' }
 ];
 
-const PROGRESSION_THRESHOLD = 3; // seances consecutives reussies pour +2.5kg
-const PROGRESSION_STEP = 2.5; // kg
+const PROGRESSION_THRESHOLD = 3;
+const PROGRESSION_STEP = 2.5;
 
 class ProgramManager {
   constructor() {
@@ -23,10 +23,14 @@ class ProgramManager {
   }
 
   async init() {
-    // Charger le plan personnalise si existant
     const raw = await DB.getSetting('weeklyPlanCustom');
     if (raw) {
       this._customWeeklyPlan = JSON.parse(raw);
+      // Migration: ensure category field on existing plans
+      this._customWeeklyPlan = this._customWeeklyPlan.map(d => ({
+        ...d,
+        category: d.category || 'salle'
+      }));
     }
 
     this.currentProgram = await DB.getActiveProgram();
@@ -40,13 +44,14 @@ class ProgramManager {
     return this._customWeeklyPlan || DEFAULT_WEEKLY_PLAN;
   }
 
-  async saveCustomWeeklyPlan(dayTypeMap) {
-    // dayTypeMap: { 0: 'rest', 1: 'upper', 2: 'lower', 3: 'rest', ... }
+  async saveCustomWeeklyPlan(daySessionMap) {
+    // daySessionMap: { 0: { type:'rest', category:'salle' }, 1: { type:'upper', category:'salle' }, ... }
     const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-    const weeklyPlan = Object.entries(dayTypeMap).map(([day, type]) => ({
+    const weeklyPlan = Object.entries(daySessionMap).map(([day, info]) => ({
       day: parseInt(day),
       label: DAY_LABELS[parseInt(day)],
-      type
+      type: info.type,
+      category: info.category || 'salle'
     }));
     this._customWeeklyPlan = weeklyPlan;
     await DB.setSetting('weeklyPlanCustom', JSON.stringify(weeklyPlan));
@@ -64,11 +69,6 @@ class ProgramManager {
 
       for (const dayPlan of weeklyPlan) {
         if (dayPlan.type === 'rest') continue;
-        const sessionDate = new Date(weekStart);
-        // Calculate actual date for this weekday
-        const dayOffset = dayPlan.day - weekStart.getDay();
-        sessionDate.setDate(weekStart.getDate() + (dayOffset >= 0 ? dayOffset : dayOffset + 7) + (w * 7));
-        // Correct: just use week offset
         const targetDate = new Date(startDate);
         targetDate.setDate(startDate.getDate() + w * 7 + (dayPlan.day === 0 ? 6 : dayPlan.day - 1));
 
@@ -76,6 +76,7 @@ class ProgramManager {
           dayOfWeek: dayPlan.day,
           dayLabel: dayPlan.label,
           type: dayPlan.type,
+          category: dayPlan.category || 'salle',
           date: targetDate.toISOString().split('T')[0],
           completed: false
         });
@@ -92,7 +93,6 @@ class ProgramManager {
       createdAt: Date.now()
     };
 
-    // Deactivate old programs
     const old = await DB.getAllPrograms();
     for (const p of old) {
       await DB.saveProgram({ ...p, active: false });
@@ -117,6 +117,13 @@ class ProgramManager {
     return dayPlan ? dayPlan.type : 'rest';
   }
 
+  getTodayCategory() {
+    const today = new Date().getDay();
+    const plan = this.getEffectiveWeeklyPlan();
+    const dayPlan = plan.find(d => d.day === today);
+    return dayPlan ? (dayPlan.category || 'salle') : 'salle';
+  }
+
   getNextWorkout() {
     if (!this.currentProgram) return null;
     const today = new Date().toISOString().split('T')[0];
@@ -131,14 +138,15 @@ class ProgramManager {
     return null;
   }
 
-  async markSessionCompleted(date, type) {
+  async markSessionCompleted(date, type, category) {
     if (!this.currentProgram) return;
     let found = false;
     const updated = { ...this.currentProgram };
 
     for (const week of updated.weeks) {
       for (const session of week.sessions) {
-        if (session.date === date && session.type === type && !session.completed) {
+        const catMatch = category ? (session.category || 'salle') === category : true;
+        if (session.date === date && session.type === type && catMatch && !session.completed) {
           session.completed = true;
           found = true;
           break;
@@ -208,12 +216,14 @@ class ProgramManager {
     const plan = this.getEffectiveWeeklyPlan();
 
     plan.forEach(dayPlan => {
+      const cat = dayPlan.category || 'salle';
       const div = document.createElement('div');
-      div.className = 'plan-day' + (dayPlan.day === today ? ' today' : '');
+      div.className = 'plan-day plan-day--' + cat + (dayPlan.day === today ? ' today' : '');
       div.innerHTML = `
         <div class="plan-day-label">${dayPlan.label}</div>
         <div class="plan-day-type">${WORKOUT_TYPE_ICONS[dayPlan.type] || '😴'}</div>
         <div class="plan-day-name">${WORKOUT_TYPE_LABELS[dayPlan.type] || 'Repos'}</div>
+        ${cat !== 'salle' ? `<div class="plan-day-cat">${CATEGORY_ICONS[cat] || ''}</div>` : ''}
       `;
       container.appendChild(div);
     });
@@ -242,14 +252,17 @@ class ProgramManager {
         </div>
         <div class="week-card-body ${isOpen ? 'open' : ''}">
           <div class="week-session-list">
-            ${week.sessions.map(s => `
-              <div class="week-session-item">
+            ${week.sessions.map(s => {
+              const cat = s.category || 'salle';
+              return `
+              <div class="week-session-item week-session-item--${cat}">
                 <span class="wsi-day">${s.dayLabel}</span>
+                <span class="wsi-cat">${CATEGORY_ICONS[cat] || ''}</span>
                 <span class="wsi-type">${WORKOUT_TYPE_ICONS[s.type] || '?'}</span>
                 <span class="wsi-name">${WORKOUT_TYPE_LABELS[s.type] || s.type}</span>
                 <span class="wsi-status">${s.completed ? '✅' : ''}</span>
               </div>
-            `).join('')}
+            `}).join('')}
           </div>
         </div>
       `;

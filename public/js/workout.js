@@ -457,9 +457,11 @@ class WorkoutSession {
   }
 
   async _saveWorkout() {
+    const cat = (typeof App !== 'undefined' && App.activeCategory) ? App.activeCategory : 'salle';
     const workout = {
       date: Date.now(),
       type: this.workoutType,
+      category: cat,
       duration: this.elapsed,
       energyLevel: this.energyLevel,
       lightMode: this.lightMode,
@@ -476,7 +478,8 @@ class WorkoutSession {
       await DB.addWorkout(workout);
       await Program.markSessionCompleted(
         new Date().toISOString().split('T')[0],
-        this.workoutType
+        this.workoutType,
+        cat
       );
       App.showToast('Seance sauvegardee ! 🎉', 'success');
       this._resetUI();
@@ -492,7 +495,9 @@ class WorkoutSession {
   _discard() {
     if (!confirm('Abandonner la seance ? Les donnees seront perdues.')) return;
     this._resetUI();
-    App.setHeader('Easy Sport', false);
+    const cat = (typeof App !== 'undefined' && App.activeCategory) ? App.activeCategory : null;
+    const label = cat ? `${CATEGORY_ICONS[cat]} ${CATEGORY_LABELS[cat]}` : 'Easy Sport';
+    App.setHeader(label, false);
   }
 
   _resetUI() {
@@ -512,7 +517,9 @@ class WorkoutSession {
     if (d.workoutTypeGrid) {
       d.workoutTypeGrid.querySelectorAll('.workout-type-btn').forEach(b => b.classList.remove('selected'));
     }
-    App.setHeader('Easy Sport', false);
+    const cat = (typeof App !== 'undefined' && App.activeCategory) ? App.activeCategory : null;
+    const label = cat ? `${CATEGORY_ICONS[cat]} ${CATEGORY_LABELS[cat]}` : 'Easy Sport';
+    App.setHeader(label, false);
   }
 
   startWorkoutOfType(type) {

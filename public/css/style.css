@@ -20,6 +20,14 @@
   --color-danger: #ef4444;
   --color-info: #3b82f6;
 
+  /* Category colors */
+  --color-salle: #e040fb;
+  --color-salle-light: rgba(224,64,251,0.15);
+  --color-salle-int: #22d3ee;
+  --color-salle-int-light: rgba(34,211,238,0.15);
+  --color-exterieur: #4ade80;
+  --color-exterieur-light: rgba(74,222,128,0.15);
+
   /* Muscle group colors */
   --muscle-chest: #f472b6;
   --muscle-back: #60a5fa;
@@ -1874,4 +1882,395 @@ svg defs { display: none; }
 .exercise-pref-color.muscle-calves    { background: var(--muscle-calves); }
 .exercise-pref-color.muscle-core      { background: var(--muscle-core); }
 .exercise-pref-color.muscle-cardio    { background: var(--muscle-cardio); }
+.exercise-pref-color.muscle-full_body { background: var(--color-accent); }
+.exercise-pref-color.muscle-mobility  { background: #a78bfa; }
+
+/* ================================================
+   PHASE A - CATEGORY HOME SCREEN
+================================================ */
+
+#category-home {
+  position: absolute;
+  inset: var(--header-height) 0 0 0;
+  background: var(--bg-primary);
+  z-index: 5;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-lg) var(--space-md) calc(var(--space-2xl) + 24px);
+  transition: opacity var(--transition-base);
+}
+
+#category-home.hidden {
+  display: none;
+}
+
+.category-home-inner {
+  width: 100%;
+  max-width: 480px;
+}
+
+.category-home-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  font-size: var(--font-size-xl);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: var(--space-xl);
+}
+
+.category-cards {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.category-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
+  cursor: pointer;
+  text-align: left;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast), border-color var(--transition-fast);
+  width: 100%;
+}
+
+.category-card:active {
+  transform: scale(0.97);
+}
+
+.category-card--salle {
+  border-color: var(--color-salle-light);
+}
+.category-card--salle:hover, .category-card--salle:focus {
+  border-color: var(--color-salle);
+  box-shadow: 0 0 0 2px var(--color-salle-light), var(--shadow-card);
+}
+
+.category-card--interieur {
+  border-color: var(--color-salle-int-light);
+}
+.category-card--interieur:hover, .category-card--interieur:focus {
+  border-color: var(--color-salle-int);
+  box-shadow: 0 0 0 2px var(--color-salle-int-light), var(--shadow-card);
+}
+
+.category-card--exterieur {
+  border-color: var(--color-exterieur-light);
+}
+.category-card--exterieur:hover, .category-card--exterieur:focus {
+  border-color: var(--color-exterieur);
+  box-shadow: 0 0 0 2px var(--color-exterieur-light), var(--shadow-card);
+}
+
+.cc-icon {
+  font-size: 40px;
+  flex-shrink: 0;
+  width: 56px;
+  text-align: center;
+}
+
+.cc-info {
+  flex: 1;
+}
+
+.cc-title {
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.cc-desc {
+  font-size: var(--font-size-sm);
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.cc-arrow {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+/* Category content wrapper */
+#category-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+#category-content.hidden {
+  display: none;
+}
+
+/* btn-category-home */
+.btn-category-home {
+  margin-right: 4px;
+}
+
+/* ---- Dashboard cat badge ---- */
+.dashboard-cat-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  background: var(--grad-soft);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.cat-badge--salle { background: var(--color-salle-light); color: var(--color-salle); }
+.cat-badge--interieur { background: var(--color-salle-int-light); color: var(--color-salle-int); }
+.cat-badge--exterieur { background: var(--color-exterieur-light); color: var(--color-exterieur); }
+
+.hero-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-sm);
+}
+
+/* ---- Category color theming ---- */
+body.cat-interieur {
+  --color-primary: #22d3ee;
+  --color-primary-dark: #06b6d4;
+  --color-secondary: #0e7490;
+  --grad-primary: linear-gradient(135deg, #22d3ee 0%, #0e7490 100%);
+  --grad-soft: linear-gradient(135deg, rgba(34,211,238,0.15) 0%, rgba(14,116,144,0.15) 100%);
+  --shadow-glow: 0 0 24px rgba(34,211,238,0.2);
+}
+
+body.cat-exterieur {
+  --color-primary: #4ade80;
+  --color-primary-dark: #22c55e;
+  --color-secondary: #15803d;
+  --grad-primary: linear-gradient(135deg, #4ade80 0%, #15803d 100%);
+  --grad-soft: linear-gradient(135deg, rgba(74,222,128,0.15) 0%, rgba(21,128,61,0.15) 100%);
+  --shadow-glow: 0 0 24px rgba(74,222,128,0.2);
+}
+
+/* ---- Plan day category dots ---- */
+.plan-day--interieur .plan-day-type { color: var(--color-salle-int); }
+.plan-day--exterieur .plan-day-type { color: var(--color-exterieur); }
+.plan-day--salle .plan-day-type { color: var(--color-salle); }
+.plan-day-cat { font-size: 11px; margin-top: 2px; }
+
+.week-session-item--salle   { border-left: 2px solid var(--color-salle); }
+.week-session-item--interieur { border-left: 2px solid var(--color-salle-int); }
+.week-session-item--exterieur { border-left: 2px solid var(--color-exterieur); }
+
+.wdd--interieur { border: 2px solid var(--color-salle-int) !important; }
+.wdd--exterieur { border: 2px solid var(--color-exterieur) !important; }
+
+/* ---- Workout type buttons ---- */
+.workout-type-btn--interieur.selected {
+  background: var(--color-salle-int-light);
+  border-color: var(--color-salle-int);
+}
+.workout-type-btn--exterieur.selected {
+  background: var(--color-exterieur-light);
+  border-color: var(--color-exterieur);
+}
+
+/* ---- Stats category tabs ---- */
+.stats-cat-tabs {
+  display: flex;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.stats-cat-tab {
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-color);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all var(--transition-fast);
+}
+
+.stats-cat-tab.active,
+.stats-cat-tab[data-cat="salle"].active { background: var(--color-salle-light); color: var(--color-salle); border-color: var(--color-salle); }
+.stats-cat-tab[data-cat="interieur"].active { background: var(--color-salle-int-light); color: var(--color-salle-int); border-color: var(--color-salle-int); }
+.stats-cat-tab[data-cat="exterieur"].active { background: var(--color-exterieur-light); color: var(--color-exterieur); border-color: var(--color-exterieur); }
+
+/* ---- Outdoor page styles ---- */
+
+.outdoor-summary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.outdoor-summary-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md);
+}
+
+.osc-label {
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--space-sm);
+}
+
+.osc-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-sm);
+}
+
+.osc-row span {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.osc-val {
+  font-size: var(--font-size-xl);
+  font-weight: 800;
+  color: var(--color-exterieur);
+  display: block;
+  line-height: 1;
+  margin-bottom: 2px;
+}
+
+/* Outdoor session item */
+.outdoor-session-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.outdoor-session-item:last-child { border-bottom: none; }
+
+.osi-icon { font-size: 26px; flex-shrink: 0; width: 36px; text-align: center; }
+.osi-info { flex: 1; min-width: 0; }
+.osi-name { font-size: var(--font-size-md); font-weight: 600; color: var(--text-primary); }
+.osi-detail { font-size: var(--font-size-sm); color: var(--text-muted); margin-top: 2px; }
+.osi-location { font-size: var(--font-size-xs); color: var(--text-muted); margin-top: 2px; }
+.osi-right { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.osi-date { font-size: var(--font-size-xs); color: var(--text-muted); }
+.osi-feeling { font-size: 16px; }
+.osi-actions { display: flex; gap: 4px; }
+
+/* Outdoor stats row (dashboard) */
+.outdoor-stats-row {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: space-around;
+  padding: var(--space-sm) 0;
+}
+
+.outdoor-stat-item { text-align: center; }
+.osi-val { font-size: var(--font-size-2xl); font-weight: 800; color: var(--color-exterieur); }
+.osi-lbl { font-size: var(--font-size-xs); color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+
+/* Outdoor mini item (dashboard recent) */
+.outdoor-mini-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.outdoor-mini-item:last-child { border-bottom: none; }
+.omi-icon { font-size: 20px; }
+.omi-name { flex: 1; font-size: var(--font-size-sm); color: var(--text-primary); }
+.omi-val { font-size: var(--font-size-sm); color: var(--text-muted); }
+.omi-date { font-size: var(--font-size-xs); color: var(--text-muted); }
+
+/* Outdoor form feeling buttons */
+.feeling-row {
+  display: flex;
+  gap: var(--space-sm);
+}
+
+.feeling-btn {
+  flex: 1;
+  padding: 10px 4px;
+  font-size: 22px;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border-color);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.feeling-btn.active {
+  border-color: var(--color-primary);
+  background: var(--grad-soft);
+}
+
+/* Outdoor act stat (stats page) */
+.outdoor-act-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.outdoor-act-stat:last-child { border-bottom: none; }
+.oas-icon { font-size: 22px; }
+.oas-name { flex: 1; font-size: var(--font-size-sm); color: var(--text-primary); font-weight: 500; }
+.oas-count { font-size: var(--font-size-sm); color: var(--text-muted); }
+.oas-km { font-size: var(--font-size-sm); font-weight: 700; color: var(--color-exterieur); min-width: 70px; text-align: right; }
+
+/* Modal large (outdoor form) */
+.modal-large .modal-body { max-height: calc(100vh - 200px); overflow-y: auto; }
+.outdoor-form-overlay .modal { max-height: 95vh; display: flex; flex-direction: column; }
+
+/* Day plan row - category selector */
+.day-cat-select-sm {
+  max-width: 58px;
+  padding: 6px 4px;
+  font-size: 18px;
+  text-align: center;
+}
+
+/* Week session item */
+.week-session-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--bg-input);
+  border-radius: var(--radius-sm);
+  margin-bottom: 4px;
+  border-left: 2px solid transparent;
+}
+
+.wsi-day { font-size: var(--font-size-sm); color: var(--text-muted); min-width: 28px; }
+.wsi-cat { font-size: 14px; }
+.wsi-type { font-size: 16px; }
+.wsi-name { flex: 1; font-size: var(--font-size-sm); color: var(--text-primary); }
+.wsi-status { font-size: 14px; }
+
+/* Muscle missing colors */
+.muscle-full_body { --muscle-color: var(--color-accent); }
+.muscle-mobility  { --muscle-color: #a78bfa; }
+.muscle-bar-fill.muscle-full_body { background: var(--color-accent); }
+.muscle-bar-fill.muscle-mobility  { background: #a78bfa; }
+.workout-preview-dot.muscle-full_body { background: var(--color-accent); }
+.workout-preview-dot.muscle-mobility  { background: #a78bfa; }
+.exercise-item-color.muscle-full_body { background: var(--color-accent); }
+.exercise-item-color.muscle-mobility  { background: #a78bfa; }
 

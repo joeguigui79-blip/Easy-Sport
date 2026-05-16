@@ -1,11 +1,14 @@
 /**
  * stats.js - Statistics, charts and progress tracking
+ * Supports category filter: salle, interieur, exterieur
  */
 
 class StatsManager {
   constructor() {
     this._workouts = [];
+    this._outdoorSessions = [];
     this._progressChart = null;
+    this._currentCat = 'salle';
   }
 
   async init() {
@@ -16,6 +19,8 @@ class StatsManager {
   async refresh() {
     this._workouts = await DB.getAllWorkouts();
     this._workouts.sort((a, b) => b.date - a.date);
+    this._outdoorSessions = await DB.getAllOutdoorSessions();
+    this._outdoorSessions.sort((a, b) => b.date - a.date);
     return this._workouts;
   }
 
@@ -26,25 +31,55 @@ class StatsManager {
         this.renderProgressChart(sel.value ? parseInt(sel.value) : null);
       });
     }
+
+    // Category toggle tabs
+    document.querySelectorAll('.stats-cat-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.stats-cat-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        this._currentCat = tab.dataset.cat;
+        this.renderAll(this._currentCat);
+      });
+    });
   }
 
-  async renderAll() {
+  async renderAll(category) {
     await this.refresh();
-    this._renderGlobalStats();
-    this._renderMuscleChart();
-    this._renderExerciseSelect();
-    this._renderHistory();
+    this._currentCat = category || this._currentCat;
+
+    // Sync tabs
+    document.querySelectorAll('.stats-cat-tab').forEach(tab => {
+      tab.classList.toggle('active', tab.dataset.cat === this._currentCat);
+    });
+
+    if (this._currentCat === 'exterieur') {
+      this._renderOutdoorStats();
+      document.getElementById('stats-training-section')?.classList.add('hidden');
+      document.getElementById('stats-outdoor-section')?.classList.remove('hidden');
+    } else {
+      document.getElementById('stats-training-section')?.classList.remove('hidden');
+      document.getElementById('stats-outdoor-section')?.classList.add('hidden');
+      this._renderGlobalStats(this._currentCat);
+      this._renderMuscleChart(this._currentCat);
+      this._renderExerciseSelect(this._currentCat);
+      this._renderHistory(this._currentCat);
+    }
   }
 
-  _renderGlobalStats() {
-    const totalVol = this._workouts.reduce((acc, w) =>
+  _filterWorkoutsByCat(cat) {
+    if (!cat || cat === 'all') return this._workouts;
+    return this._workouts.filter(w => (w.category || 'salle') === cat);
+  }
+
+  _renderGlobalStats(cat) {
+    const workouts = this._filterWorkoutsByCat(cat);
+
+    const totalVol = workouts.reduce((acc, w) =>
       acc + (w.exercises || []).reduce((a, ex) =>
         a + (ex.sets || []).reduce((s, set) => s + (set.weight * set.reps), 0), 0), 0);
 
-    const totalSessions = this._workouts.length;
-
-    // Best streak
-    const streak = this._getBestStreak();
+    const totalSessions = workouts.length;
+    const streak = this._getBestStreak(workouts);
 
     const el = (id, val) => {
       const e = document.getElementById(id);
@@ -55,14 +90,13 @@ class StatsManager {
     el('stat-total-sessions-num', totalSessions);
     el('stat-best-streak', streak);
 
-    // History count badge
     const badge = document.getElementById('history-count');
     if (badge) badge.textContent = `${totalSessions} seance${totalSessions > 1 ? 's' : ''}`;
   }
 
-  _getBestStreak() {
-    if (this._workouts.length === 0) return 0;
-    const dates = [...new Set(this._workouts.map(w => {
+  _getBestStreak(workouts) {
+    if (!workouts || workouts.length === 0) return 0;
+    const dates = [...new Set(workouts.map(w => {
       const d = new Date(w.date);
       return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
     }))].sort();
@@ -82,12 +116,13 @@ class StatsManager {
     return best;
   }
 
-  _renderMuscleChart() {
+  _renderMuscleChart(cat) {
     const container = document.getElementById('muscle-chart');
     if (!container) return;
 
+    const workouts = this._filterWorkoutsByCat(cat);
     const volumeByMuscle = {};
-    this._workouts.forEach(w => {
+    workouts.forEach(w => {
       (w.exercises || []).forEach(ex => {
         const vol = (ex.sets || []).reduce((acc, s) => acc + (s.weight * s.reps), 0);
         volumeByMuscle[ex.muscle] = (volumeByMuscle[ex.muscle] || 0) + vol;
@@ -119,13 +154,13 @@ class StatsManager {
     });
   }
 
-  _renderExerciseSelect() {
+  _renderExerciseSelect(cat) {
     const sel = document.getElementById('stats-exercise-select');
     if (!sel) return;
 
-    // Get exercises that appear in workouts
+    const workouts = this._filterWorkoutsByCat(cat);
     const exerciseMap = {};
-    this._workouts.forEach(w => {
+    workouts.forEach(w => {
       (w.exercises || []).forEach(ex => {
         exerciseMap[ex.exerciseId] = ex.exerciseName;
       });
@@ -149,9 +184,9 @@ class StatsManager {
       return;
     }
 
-    // Gather data points: max weight per session
+    const workouts = this._filterWorkoutsByCat(this._currentCat);
     const dataPoints = [];
-    this._workouts.slice().reverse().forEach(w => {
+    workouts.slice().reverse().forEach(w => {
       const ex = (w.exercises || []).find(e => e.exerciseId === exerciseId);
       if (!ex || !ex.sets || ex.sets.length === 0) return;
 
@@ -177,7 +212,6 @@ class StatsManager {
     wrap.appendChild(canvas);
     container.appendChild(wrap);
 
-    // Draw simple line chart
     this._drawLineChart(canvas, dataPoints);
   }
 
@@ -191,7 +225,6 @@ class StatsManager {
 
     ctx.clearRect(0, 0, W, H);
 
-    // Colors
     const isDark = document.body.classList.contains('theme-dark');
     const textColor = isDark ? 'rgba(240,240,255,0.6)' : 'rgba(30,0,51,0.5)';
     const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
@@ -200,10 +233,8 @@ class StatsManager {
     const minVal = Math.max(0, Math.min(...values) - 5);
     const maxVal = Math.max(...values) + 5;
     const range = maxVal - minVal || 1;
-
     const xStep = data.length > 1 ? chartW / (data.length - 1) : chartW;
 
-    // Grid lines
     ctx.strokeStyle = gridColor;
     ctx.lineWidth = 1;
     for (let i = 0; i <= 4; i++) {
@@ -213,7 +244,6 @@ class StatsManager {
       ctx.lineTo(pad.left + chartW, y);
       ctx.stroke();
 
-      // Y labels
       const val = maxVal - ((maxVal - minVal) / 4) * i;
       ctx.fillStyle = textColor;
       ctx.font = '18px system-ui';
@@ -221,7 +251,6 @@ class StatsManager {
       ctx.fillText(val.toFixed(0) + 'kg', pad.left - 6, y + 5);
     }
 
-    // X labels
     ctx.fillStyle = textColor;
     ctx.font = '16px system-ui';
     ctx.textAlign = 'center';
@@ -230,7 +259,6 @@ class StatsManager {
       ctx.fillText(d.label, x, H - 8);
     });
 
-    // Area fill
     const gradient = ctx.createLinearGradient(0, pad.top, 0, pad.top + chartH);
     gradient.addColorStop(0, 'rgba(224,64,251,0.35)');
     gradient.addColorStop(1, 'rgba(124,58,237,0.0)');
@@ -248,7 +276,6 @@ class StatsManager {
     ctx.fillStyle = gradient;
     ctx.fill();
 
-    // Line
     ctx.beginPath();
     ctx.strokeStyle = '#e040fb';
     ctx.lineWidth = 3;
@@ -262,7 +289,6 @@ class StatsManager {
     });
     ctx.stroke();
 
-    // Points
     data.forEach((d, i) => {
       const x = pad.left + i * xStep;
       const y = pad.top + chartH - ((d.weight - minVal) / range) * chartH;
@@ -276,19 +302,61 @@ class StatsManager {
     });
   }
 
-  _renderHistory() {
+  _renderOutdoorStats() {
+    const sessions = this._outdoorSessions;
+    const periods = ['7d', '30d', 'month'];
+
+    // By activity type
+    const actContainer = document.getElementById('outdoor-stats-by-activity');
+    if (actContainer) {
+      const byAct = {};
+      sessions.forEach(s => {
+        if (!byAct[s.activity]) byAct[s.activity] = { count: 0, totalMin: 0, totalKm: 0 };
+        byAct[s.activity].count++;
+        byAct[s.activity].totalMin += s.durationMin || 0;
+        byAct[s.activity].totalKm += s.distanceKm || 0;
+      });
+
+      const entries = Object.entries(byAct);
+      if (entries.length === 0) {
+        actContainer.innerHTML = '<p class="empty-state">Aucune donnee</p>';
+      } else {
+        actContainer.innerHTML = entries.map(([act, d]) => `
+          <div class="outdoor-act-stat">
+            <span class="oas-icon">${Outdoor.getActivityIcon(act)}</span>
+            <span class="oas-name">${Outdoor.getActivityLabel(act)}</span>
+            <span class="oas-count">${d.count} seances</span>
+            <span class="oas-km">${d.totalKm > 0 ? d.totalKm.toFixed(1) + ' km' : d.totalMin + ' min'}</span>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Period stats
+    const el = (id, val) => { const e = document.getElementById(id); if (e) e.textContent = val; };
+    const s7 = Outdoor.getStats(sessions, '7d');
+    const s30 = Outdoor.getStats(sessions, '30d');
+    el('outdoor-stats-km-7d', s7.totalKm.toFixed(1));
+    el('outdoor-stats-min-7d', s7.totalMin);
+    el('outdoor-stats-count-7d', s7.count);
+    el('outdoor-stats-km-30d', s30.totalKm.toFixed(1));
+    el('outdoor-stats-min-30d', s30.totalMin);
+    el('outdoor-stats-count-30d', s30.count);
+  }
+
+  _renderHistory(cat) {
     const container = document.getElementById('session-history');
     if (!container) return;
 
-    if (this._workouts.length === 0) {
+    const workouts = this._filterWorkoutsByCat(cat);
+
+    if (workouts.length === 0) {
       container.innerHTML = '<p class="empty-state">Aucune seance enregistree</p>';
       return;
     }
 
     container.innerHTML = '';
-    const shown = this._workouts.slice(0, 20);
-
-    shown.forEach(w => {
+    workouts.slice(0, 20).forEach(w => {
       const date = new Date(w.date);
       const dateStr = date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
       const timeStr = date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
@@ -313,21 +381,25 @@ class StatsManager {
   }
 
   // Called from dashboard
-  async getStreakInfo() {
+  async getStreakInfo(cat) {
     await this.refresh();
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // For exterieur, count outdoor sessions; for others, count workouts
+    let allSessions;
+    if (cat === 'exterieur') {
+      allSessions = this._outdoorSessions;
+    } else {
+      allSessions = this._filterWorkoutsByCat(cat);
+    }
+
     let streak = 0;
     const checkDate = new Date(today);
-
     while (true) {
       const dayStr = checkDate.toISOString().split('T')[0];
-      const hasWorkout = this._workouts.some(w => {
-        const d = new Date(w.date);
-        return d.toISOString().split('T')[0] === dayStr;
-      });
-      if (!hasWorkout) break;
+      const has = allSessions.some(w => new Date(w.date).toISOString().split('T')[0] === dayStr);
+      if (!has) break;
       streak++;
       checkDate.setDate(checkDate.getDate() - 1);
     }
@@ -335,7 +407,7 @@ class StatsManager {
     const weekStart = new Date(today);
     weekStart.setDate(today.getDate() - today.getDay() + (today.getDay() === 0 ? -6 : 1));
 
-    const weekSessions = this._workouts.filter(w => {
+    const weekSessions = allSessions.filter(w => {
       const d = new Date(w.date);
       return d >= weekStart && d <= today;
     }).length;
@@ -343,15 +415,16 @@ class StatsManager {
     return {
       streak,
       weekSessions,
-      totalSessions: this._workouts.length
+      totalSessions: allSessions.length
     };
   }
 
-  async getRecentProgress() {
+  async getRecentProgress(cat) {
     await this.refresh();
+    const workouts = this._filterWorkoutsByCat(cat);
     const exerciseProgress = {};
 
-    this._workouts.slice(0, 10).forEach(w => {
+    workouts.slice(0, 10).forEach(w => {
       (w.exercises || []).forEach(ex => {
         if (!ex.sets || ex.sets.length === 0) return;
         const maxW = Math.max(...ex.sets.map(s => s.weight || 0));
@@ -363,8 +436,7 @@ class StatsManager {
 
     return Object.entries(exerciseProgress).slice(0, 5).map(([name, weight]) => ({
       name,
-      weight,
-      gain: '+2.5 kg' // simplified - would need historical comparison
+      weight
     }));
   }
 }
