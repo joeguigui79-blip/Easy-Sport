@@ -596,7 +596,40 @@ const App = {
   },
 
   loadExercisesPage() {
-    if (this._renderExerciseList) this._renderExerciseList();
+    const cat = this.activeCategory || 'salle';
+    const filtersEl = document.getElementById('exercise-filters');
+    const searchEl = document.getElementById('exercise-search');
+    const addBtn = document.getElementById('btn-add-exercise');
+    const list = document.getElementById('exercise-list');
+
+    if (cat === 'exterieur') {
+      // Hide filters/search/add for outdoor catalogue, show activities list
+      if (filtersEl) filtersEl.style.display = 'none';
+      if (searchEl) searchEl.parentElement && (searchEl.closest('.search-bar') || searchEl.parentElement).style && (searchEl.closest('.search-bar') || searchEl.parentElement).setAttribute('style', 'display:none');
+      if (addBtn) addBtn.style.display = 'none';
+      if (list) {
+        list.innerHTML = '';
+        OUTDOOR_ACTIVITIES.forEach(a => {
+          const item = document.createElement('div');
+          item.className = 'exercise-item';
+          item.innerHTML = `
+            <div class="exercise-item-color" style="background:var(--color-exterieur,#22c55e)"></div>
+            <div class="exercise-item-info">
+              <div class="exercise-item-name">${a.icon} ${a.label}</div>
+              <div class="exercise-item-muscle" style="color:var(--text-muted)">Activite exterieure</div>
+            </div>
+          `;
+          list.appendChild(item);
+        });
+      }
+    } else {
+      // Restore for salle/interieur
+      if (filtersEl) filtersEl.style.display = '';
+      const searchBar = document.querySelector('.search-bar');
+      if (searchBar) searchBar.style.display = '';
+      if (addBtn) addBtn.style.display = '';
+      if (this._renderExerciseList) this._renderExerciseList();
+    }
   },
 
   _showExerciseModal(ex) {
@@ -741,6 +774,29 @@ const App = {
           { v: 'yoga_int', l: '🧘 Yoga / Mobilite' },
           { v: 'rest', l: '😴 Repos' }
         ]
+      : cat === 'exterieur'
+      ? [
+          { v: 'rest', l: '😴 Repos' },
+          { v: 'running', l: '🏃 Course a pied' },
+          { v: 'running_long', l: '🏃 Course longue distance' },
+          { v: 'walk_fast', l: '🚶 Marche rapide' },
+          { v: 'nordic_walk', l: '🥾 Marche nordique' },
+          { v: 'trail', l: '⛰️ Trail' },
+          { v: 'cycling_road', l: '🚴 Velo de route' },
+          { v: 'cycling_mtb', l: '🏔️ VTT' },
+          { v: 'swimming_open', l: '🏊 Natation eau libre' },
+          { v: 'swimming_outdoor', l: '🏊‍♀️ Natation piscine ext.' },
+          { v: 'hiking', l: '🥾 Randonnee' },
+          { v: 'sprint', l: '⚡ Sprint / fractionne' },
+          { v: 'roller', l: '⛸️ Roller' },
+          { v: 'rowing', l: '🚣 Aviron / kayak / canoe' },
+          { v: 'sup', l: '🏄 SUP' },
+          { v: 'climbing_outdoor', l: '🧗 Escalade exterieure' },
+          { v: 'orienteering', l: '🧭 Course d\'orientation' },
+          { v: 'street_workout', l: '🤸 Street workout' },
+          { v: 'boxing_outdoor', l: '🥊 Boxe exterieure' },
+          { v: 'crossfit_outdoor', l: '🔥 Crossfit outdoor' }
+        ]
       : [
           { v: 'upper', l: '💪 Haut du corps' },
           { v: 'lower', l: '🦵 Bas du corps' },
@@ -836,10 +892,10 @@ const App = {
     const extypeTabs = document.querySelectorAll('.extype-tab');
     const salleTypes = ['upper', 'lower', 'full', 'cardio'];
     const intTypes = ['upper_int', 'lower_int', 'full_int', 'hiit_int', 'yoga_int'];
-    const activeTypes = cat === 'interieur' ? intTypes : salleTypes;
+    const activeTypes = cat === 'interieur' ? intTypes : (cat === 'exterieur' ? [] : salleTypes);
     let firstVisible = null;
     extypeTabs.forEach(tab => {
-      const isVisible = activeTypes.includes(tab.dataset.extype);
+      const isVisible = cat !== 'exterieur' && activeTypes.includes(tab.dataset.extype);
       tab.style.display = isVisible ? '' : 'none';
       if (isVisible && !firstVisible) firstVisible = tab;
     });
@@ -873,6 +929,12 @@ const App = {
     Program.renderWeeklyPlan(document.getElementById('weekly-plan'), cat);
     this._renderWeekPlanEditor();
     Program.renderProgramWeeks(document.getElementById('program-weeks'), cat);
+
+    // For exterieur: replace "Exercices" tab content with outdoor activities info
+    const extypeList = document.getElementById('extype-list');
+    if (cat === 'exterieur' && extypeList) {
+      extypeList.innerHTML = '<p class="empty-state" style="padding:16px">Les activites exterieures se configurent depuis le tab Seances.</p>';
+    }
   },
 
   _registerSW() {

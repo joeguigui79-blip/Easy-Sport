@@ -413,7 +413,27 @@ const WORKOUT_TYPE_LABELS = {
   lower_int: 'Bas du corps',
   full_int: 'Full body',
   hiit_int: 'HIIT',
-  yoga_int: 'Yoga / Mobilite'
+  yoga_int: 'Yoga / Mobilite',
+  // Exterieur
+  running: 'Course a pied',
+  running_long: 'Course longue distance',
+  walk_fast: 'Marche rapide',
+  nordic_walk: 'Marche nordique',
+  trail: 'Trail',
+  cycling_road: 'Velo de route',
+  cycling_mtb: 'VTT',
+  swimming_open: 'Natation eau libre',
+  swimming_outdoor: 'Natation piscine ext.',
+  hiking: 'Randonnee',
+  sprint: 'Sprint / fractionne',
+  roller: 'Roller',
+  rowing: 'Aviron / kayak',
+  sup: 'SUP',
+  climbing_outdoor: 'Escalade exterieure',
+  orienteering: 'Course d\'orientation',
+  street_workout: 'Street workout',
+  boxing_outdoor: 'Boxe exterieure',
+  crossfit_outdoor: 'Crossfit outdoor'
 };
 
 const WORKOUT_TYPE_ICONS = {
@@ -426,7 +446,27 @@ const WORKOUT_TYPE_ICONS = {
   lower_int: '🦵',
   full_int: '⚡',
   hiit_int: '🔥',
-  yoga_int: '🧘'
+  yoga_int: '🧘',
+  // Exterieur
+  running: '🏃',
+  running_long: '🏃',
+  walk_fast: '🚶',
+  nordic_walk: '🥾',
+  trail: '⛰️',
+  cycling_road: '🚴',
+  cycling_mtb: '🏔️',
+  swimming_open: '🏊',
+  swimming_outdoor: '🏊‍♀️',
+  hiking: '🥾',
+  sprint: '⚡',
+  roller: '⛸️',
+  rowing: '🚣',
+  sup: '🏄',
+  climbing_outdoor: '🧗',
+  orienteering: '🧭',
+  street_workout: '🤸',
+  boxing_outdoor: '🥊',
+  crossfit_outdoor: '🔥'
 };
 
 const CATEGORY_LABELS = {

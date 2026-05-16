@@ -23,6 +23,16 @@ const DEFAULT_WEEKLY_PLAN_INTERIEUR = [
   { day: 6, label: 'Sam', type: 'yoga_int', category: 'interieur' }
 ];
 
+const DEFAULT_WEEKLY_PLAN_EXTERIEUR = [
+  { day: 0, label: 'Dim', type: 'running_long', category: 'exterieur' },
+  { day: 1, label: 'Lun', type: 'rest', category: 'exterieur' },
+  { day: 2, label: 'Mar', type: 'running', category: 'exterieur' },
+  { day: 3, label: 'Mer', type: 'rest', category: 'exterieur' },
+  { day: 4, label: 'Jeu', type: 'cycling_road', category: 'exterieur' },
+  { day: 5, label: 'Ven', type: 'rest', category: 'exterieur' },
+  { day: 6, label: 'Sam', type: 'trail', category: 'exterieur' }
+];
+
 const PROGRESSION_THRESHOLD = 3;
 const PROGRESSION_STEP = 2.5;
 
@@ -40,6 +50,7 @@ class ProgramManager {
     // Load per-category plans
     const rawSalle = await DB.getSetting('weeklyPlanCustom_salle');
     const rawInt = await DB.getSetting('weeklyPlanCustom_interieur');
+    const rawExt = await DB.getSetting('weeklyPlanCustom_exterieur');
     const rawLegacy = await DB.getSetting('weeklyPlanCustom');
 
     if (rawSalle) {
@@ -53,6 +64,10 @@ class ProgramManager {
 
     if (rawInt) {
       this._customWeeklyPlans['interieur'] = JSON.parse(rawInt).map(d => ({ ...d, category: 'interieur' }));
+    }
+
+    if (rawExt) {
+      this._customWeeklyPlans['exterieur'] = JSON.parse(rawExt).map(d => ({ ...d, category: 'exterieur' }));
     }
 
     // Load active programs per category
@@ -82,6 +97,7 @@ class ProgramManager {
     const cat = category || 'salle';
     if (this._customWeeklyPlans[cat]) return this._customWeeklyPlans[cat];
     if (cat === 'interieur') return DEFAULT_WEEKLY_PLAN_INTERIEUR;
+    if (cat === 'exterieur') return DEFAULT_WEEKLY_PLAN_EXTERIEUR;
     return DEFAULT_WEEKLY_PLAN;
   }
 
@@ -149,7 +165,7 @@ class ProgramManager {
       weeks.push({ week: w + 1, sessions: weekSessions, completed: false });
     }
 
-    const catLabel = cat === 'salle' ? 'Sport en salle' : 'Sport d\'interieur';
+    const catLabel = cat === 'salle' ? 'Sport en salle' : cat === 'interieur' ? 'Sport d\'interieur' : 'Sport d\'exterieur';
     const program = {
       name: `Programme ${catLabel} - 4 semaines`,
       category: cat,
