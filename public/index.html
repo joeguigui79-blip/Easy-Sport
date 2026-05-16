@@ -13,7 +13,9 @@
 
   <link rel="manifest" href="manifest.json?v=5">
   <link rel="apple-touch-icon" href="icons/icon-192.svg">
-  <link rel="stylesheet" href="css/style.css?v=5">
+  <!-- Leaflet CSS (GPS map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="css/style.css?v=6">
   <script>
     // Auto-reload when a new service worker takes control
     if ('serviceWorker' in navigator) {
@@ -809,13 +811,16 @@
   <div id="toast" class="toast hidden" role="alert" aria-live="polite"></div>
 
   <!-- Scripts (order matters) -->
-  <script src="js/db.js?v=5"></script>
+  <!-- Leaflet JS (GPS map) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV/XN/WLcE=" crossorigin=""></script>
+  <script src="js/db.js?v=6"></script>
   <script src="js/auth.js?v=5"></script>
   <script src="js/exercises.js?v=5"></script>
   <script src="js/program.js?v=5"></script>
   <script src="js/workout.js?v=5"></script>
   <script src="js/stats.js?v=5"></script>
-  <script src="js/outdoor.js?v=5"></script>
+  <script src="js/gps-tracker.js?v=6"></script>
+  <script src="js/outdoor.js?v=6"></script>
   <script src="js/app.js?v=5"></script>
 
 </body>

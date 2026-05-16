@@ -1,0 +1,315 @@
+/**
+ * gps-tracker.js - GPS tracking module for Easy Sport outdoor sessions (Phase B)
+ * Handles watchPosition, distance calculation (Haversine), pace, elevation
+ */
+
+class GPSTracker {
+  constructor() {
+    this._watchId = null;
+    this._state = 'idle'; // idle | running | paused | stopped
+    this._trace = [];        // [{lat, lng, ts, alt}]
+    this._pausedSegments = []; // [{start, end}] timestamps of paused periods
+    this._activeDurationMs = 0; // ms of active (non-paused) time
+    this._startTs = null;
+    this._pauseTs = null;
+    this._totalDistanceKm = 0;
+    this._lastPoint = null;
+    this._recentPoints = []; // for instantaneous pace (30s window)
+    this._onUpdate = null;   // callback(stats)
+    this._onError = null;    // callback(err)
+    this._map = null;
+    this._polyline = null;
+    this._marker = null;
+    this._leafletAvailable = false;
+  }
+
+  // ---- State ----
+
+  getState() { return this._state; }
+  isRunning() { return this._state === 'running'; }
+  isPaused() { return this._state === 'paused'; }
+  getTrace() { return this._trace; }
+  getTotalDistanceKm() { return this._totalDistanceKm; }
+
+  getActiveDurationMs() {
+    if (this._state === 'running' && this._startTs) {
+      return this._activeDurationMs + (Date.now() - (this._pauseTs || this._startTs));
+    }
+    return this._activeDurationMs;
+  }
+
+  getActiveDurationMin() {
+    return this.getActiveDurationMs() / 60000;
+  }
+
+  // ---- Haversine distance ----
+
+  _haversine(lat1, lng1, lat2, lng2) {
+    const R = 6371; // km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat / 2) ** 2 +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLng / 2) ** 2;
+    return R * 2 * Math.asin(Math.sqrt(a));
+  }
+
+  // ---- Pace calculation ----
+
+  _calcPaceStr(distKm, durationMin) {
+    if (!distKm || distKm <= 0 || !durationMin || durationMin <= 0) return '--\'--"';
+    const paceMinkm = durationMin / distKm;
+    const paceMin = Math.floor(paceMinkm);
+    const paceSec = Math.round((paceMinkm - paceMin) * 60);
+    return `${paceMin}'${paceSec.toString().padStart(2, '0')}"`;
+  }
+
+  _calcInstantPace() {
+    const now = Date.now();
+    const windowMs = 30000; // 30s
+    // Keep only points in last 30s
+    this._recentPoints = this._recentPoints.filter(p => now - p.ts <= windowMs);
+    if (this._recentPoints.length < 2) return null;
+    const first = this._recentPoints[0];
+    const last = this._recentPoints[this._recentPoints.length - 1];
+    const dist = this._haversine(first.lat, first.lng, last.lat, last.lng);
+    const durMin = (last.ts - first.ts) / 60000;
+    return this._calcPaceStr(dist, durMin);
+  }
+
+  // ---- Elevation gain ----
+
+  _calcElevationGain() {
+    let gain = 0;
+    for (let i = 1; i < this._trace.length; i++) {
+      const prev = this._trace[i - 1];
+      const curr = this._trace[i];
+      if (prev.alt != null && curr.alt != null) {
+        const diff = curr.alt - prev.alt;
+        if (diff > 0) gain += diff;
+      }
+    }
+    return Math.round(gain);
+  }
+
+  // ---- Stats snapshot ----
+
+  getStats() {
+    const distKm = this._totalDistanceKm;
+    const durationMin = this.getActiveDurationMin();
+    return {
+      distanceKm: Math.round(distKm * 100) / 100,
+      durationMin: Math.round(durationMin * 10) / 10,
+      durationMs: this.getActiveDurationMs(),
+      avgPace: this._calcPaceStr(distKm, durationMin),
+      instantPace: this._calcInstantPace(),
+      elevationM: this._calcElevationGain(),
+      pointCount: this._trace.length,
+      state: this._state
+    };
+  }
+
+  // ---- Map integration ----
+
+  initMap(containerId) {
+    if (typeof L === 'undefined') {
+      console.warn('GPSTracker: Leaflet not available');
+      return false;
+    }
+    this._leafletAvailable = true;
+
+    // Destroy previous map if exists
+    if (this._map) {
+      this._map.remove();
+      this._map = null;
+      this._polyline = null;
+      this._marker = null;
+    }
+
+    this._map = L.map(containerId, {
+      zoomControl: true,
+      attributionControl: true
+    }).setView([46.5, 2.5], 13);
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+      maxZoom: 19
+    }).addTo(this._map);
+
+    this._polyline = L.polyline([], {
+      color: '#ef4444',
+      weight: 4,
+      opacity: 0.85,
+      lineJoin: 'round'
+    }).addTo(this._map);
+
+    // Custom pulsing marker icon
+    const pulseIcon = L.divIcon({
+      className: 'gps-pulse-marker',
+      html: '<div class="gps-pulse-ring"></div><div class="gps-pulse-dot"></div>',
+      iconSize: [24, 24],
+      iconAnchor: [12, 12]
+    });
+
+    this._marker = L.marker([46.5, 2.5], { icon: pulseIcon }).addTo(this._map);
+
+    return true;
+  }
+
+  _updateMap(lat, lng) {
+    if (!this._map || !this._leafletAvailable) return;
+    const latlng = [lat, lng];
+
+    if (this._trace.length > 0) {
+      const latLngs = this._trace.map(p => [p.lat, p.lng]);
+      this._polyline.setLatLngs(latLngs);
+    }
+
+    this._marker.setLatLng(latlng);
+
+    // Soft auto-pan (only if marker is near edge of view)
+    const bounds = this._map.getBounds();
+    if (!bounds.contains(latlng)) {
+      this._map.panTo(latlng, { animate: true, duration: 0.5 });
+    }
+  }
+
+  invalidateMapSize() {
+    if (this._map) {
+      setTimeout(() => this._map.invalidateSize(), 100);
+    }
+  }
+
+  // ---- Start / Pause / Resume / Stop ----
+
+  start(onUpdate, onError) {
+    if (!('geolocation' in navigator)) {
+      if (onError) onError('GPS_UNAVAILABLE');
+      return;
+    }
+
+    this._onUpdate = onUpdate;
+    this._onError = onError;
+    this._state = 'running';
+    this._trace = [];
+    this._activeDurationMs = 0;
+    this._totalDistanceKm = 0;
+    this._lastPoint = null;
+    this._recentPoints = [];
+    this._startTs = Date.now();
+    this._pauseTs = null;
+
+    this._watchId = navigator.geolocation.watchPosition(
+      (pos) => this._onPosition(pos),
+      (err) => this._onGeoError(err),
+      { enableHighAccuracy: true, maximumAge: 1000, timeout: 10000 }
+    );
+
+    // Start live stats update interval
+    this._statsInterval = setInterval(() => {
+      if (this._state === 'running' && this._onUpdate) {
+        this._onUpdate(this.getStats());
+      }
+    }, 1000);
+  }
+
+  pause() {
+    if (this._state !== 'running') return;
+    this._state = 'paused';
+    this._pauseTs = Date.now();
+    // Accumulate active time up to now
+    if (this._startTs) {
+      this._activeDurationMs += Date.now() - this._startTs;
+      this._startTs = null;
+    }
+  }
+
+  resume() {
+    if (this._state !== 'paused') return;
+    this._state = 'running';
+    this._startTs = Date.now();
+    this._pauseTs = null;
+  }
+
+  stop() {
+    if (this._watchId != null) {
+      navigator.geolocation.clearWatch(this._watchId);
+      this._watchId = null;
+    }
+    if (this._statsInterval) {
+      clearInterval(this._statsInterval);
+      this._statsInterval = null;
+    }
+
+    // Finalize duration
+    if (this._state === 'running' && this._startTs) {
+      this._activeDurationMs += Date.now() - this._startTs;
+      this._startTs = null;
+    }
+
+    this._state = 'stopped';
+
+    const finalStats = this.getStats();
+    if (this._onUpdate) this._onUpdate(finalStats);
+    return finalStats;
+  }
+
+  // ---- Position handler ----
+
+  _onPosition(pos) {
+    if (this._state !== 'running') return;
+
+    const { latitude: lat, longitude: lng, altitude: alt, accuracy } = pos.coords;
+
+    // Filter noisy points
+    if (accuracy > 30) return;
+
+    const point = { lat, lng, ts: Date.now(), alt: alt != null ? Math.round(alt) : null };
+
+    if (this._lastPoint) {
+      const dist = this._haversine(this._lastPoint.lat, this._lastPoint.lng, lat, lng);
+      // Ignore implausible jumps (>100m/s ~ 360km/h)
+      const dtSec = (point.ts - this._lastPoint.ts) / 1000;
+      const speed = dtSec > 0 ? dist * 1000 / dtSec : 0;
+      if (speed > 100) return; // filter GPS jump
+
+      this._totalDistanceKm += dist;
+    }
+
+    this._trace.push(point);
+    this._recentPoints.push(point);
+    this._lastPoint = point;
+
+    this._updateMap(lat, lng);
+
+    if (this._onUpdate) this._onUpdate(this.getStats());
+  }
+
+  _onGeoError(err) {
+    console.error('GPS error:', err);
+    if (this._onError) {
+      let msg = 'Erreur GPS';
+      if (err.code === 1) msg = 'GPS_DENIED';
+      else if (err.code === 2) msg = 'GPS_UNAVAILABLE';
+      else if (err.code === 3) msg = 'GPS_TIMEOUT';
+      this._onError(msg);
+    }
+  }
+
+  // ---- Replay helper ----
+
+  buildReplayLatLngs() {
+    return this._trace.map(p => [p.lat, p.lng]);
+  }
+
+  destroy() {
+    this.stop();
+    if (this._map) {
+      this._map.remove();
+      this._map = null;
+    }
+  }
+}
+
+// Singleton
+const GPS = new GPSTracker();

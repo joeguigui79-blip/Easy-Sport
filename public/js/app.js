@@ -201,6 +201,7 @@ const App = {
 
   navigate(page) {
     this.currentPage = page;
+    this._currentPage = page; // alias for submodules
 
     // Update pages
     document.querySelectorAll('.page').forEach(p => {
@@ -484,9 +485,24 @@ const App = {
     const addBtn = document.getElementById('btn-add-outdoor-session');
     if (addBtn) {
       addBtn.addEventListener('click', () => {
-        Outdoor.renderFormModal(null, () => this.loadOutdoorPage(), null);
+        Outdoor.showStartModal(
+          // Manual mode
+          (activity) => {
+            Outdoor.renderFormModal({ activity }, () => {
+              this.loadOutdoorPage();
+            }, null);
+          },
+          // GPS mode
+          (activity) => {
+            Outdoor.showTrackingScreen(activity);
+          }
+        );
       });
     }
+  },
+
+  _renderOutdoorPage() {
+    this.loadOutdoorPage();
   },
 
   loadOutdoorPage() {

@@ -1,25 +1,33 @@
-const CACHE_NAME = 'easy-sport-v8';
+const CACHE_NAME = 'easy-sport-v9';
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 const BASE_WITH_SLASH = BASE_PATH.endsWith('/') ? BASE_PATH : `${BASE_PATH}/`;
 const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
+
+// App assets (cache-first)
 const ASSETS = [
   BASE_WITH_SLASH,
-  toBase('index.html?v=5'),
+  toBase('index.html?v=6'),
   toBase('manifest.json?v=5'),
-  toBase('css/style.css?v=5'),
-  toBase('js/db.js?v=5'),
+  toBase('css/style.css?v=6'),
+  toBase('js/db.js?v=6'),
   toBase('js/auth.js?v=5'),
   toBase('js/exercises.js?v=5'),
   toBase('js/workout.js?v=5'),
   toBase('js/program.js?v=5'),
   toBase('js/stats.js?v=5'),
-  toBase('js/outdoor.js?v=5'),
+  toBase('js/gps-tracker.js?v=6'),
+  toBase('js/outdoor.js?v=6'),
   toBase('js/app.js?v=5'),
   toBase('icons/icon-192.svg'),
   toBase('icons/icon-512.svg')
 ];
 
-// Install: cache all assets
+// External CDN URLs (Leaflet) — network-first (not in ASSETS cache)
+const CDN_ORIGINS = [
+  'https://unpkg.com'
+];
+
+// Install: cache all app assets
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
@@ -39,18 +47,42 @@ self.addEventListener('activate', (e) => {
   );
 });
 
-// Fetch: cache first, then network
+// Fetch: cache-first for app assets, network-first for CDN (Leaflet)
 self.addEventListener('fetch', (e) => {
-  // Skip non-GET requests
   if (e.request.method !== 'GET') return;
-  // Skip chrome-extension and non-http(s) requests
   if (!e.request.url.startsWith('http')) return;
 
+  const url = new URL(e.request.url);
+
+  // Network-first for CDN resources (Leaflet tiles + JS/CSS)
+  const isCDN = CDN_ORIGINS.some(origin => url.origin === origin);
+  const isOSMTile = url.hostname.endsWith('.tile.openstreetmap.org');
+
+  if (isCDN) {
+    // Network-first, fallback to cache
+    e.respondWith(
+      fetch(e.request).then((response) => {
+        if (response && response.status === 200) {
+          const toCache = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(e.request, toCache));
+        }
+        return response;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Map tiles: network-first, no caching (avoids quota issues)
+  if (isOSMTile) {
+    e.respondWith(fetch(e.request).catch(() => new Response('', { status: 503 })));
+    return;
+  }
+
+  // Cache-first for app assets
   e.respondWith(
     caches.match(e.request).then((cached) => {
       if (cached) return cached;
       return fetch(e.request).then((response) => {
-        // Only cache valid responses
         if (!response || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
@@ -60,7 +92,6 @@ self.addEventListener('fetch', (e) => {
         });
         return response;
       }).catch(() => {
-        // Offline fallback for navigation
         if (e.request.mode === 'navigate') {
           return caches.match(toBase('index.html'));
         }
@@ -69,7 +100,7 @@ self.addEventListener('fetch', (e) => {
   );
 });
 
-// Background sync / push (placeholder)
+// Message handler
 self.addEventListener('message', (e) => {
   if (e.data && e.data.type === 'SKIP_WAITING') {
     self.skipWaiting();

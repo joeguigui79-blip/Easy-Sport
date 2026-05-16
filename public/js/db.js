@@ -4,7 +4,7 @@
  */
 
 const DB_NAME = 'EasySportDB';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 const STORES = {
   EXERCISES: 'exercises',
@@ -52,12 +52,15 @@ class EasySportDB {
           db.createObjectStore(STORES.SETTINGS, { keyPath: 'key' });
         }
 
-        // Outdoor sessions store (Phase A: manual entry)
+        // Outdoor sessions store (Phase A: manual entry / Phase B: GPS)
+        // Fields: id, date, activity, category, durationMin, distanceKm, distance_gps,
+        //         elevationM, pace, location, feeling, notes, trace (array of {lat,lng,ts,alt?})
         if (!db.objectStoreNames.contains(STORES.OUTDOOR_SESSIONS)) {
           const oStore = db.createObjectStore(STORES.OUTDOOR_SESSIONS, { keyPath: 'id', autoIncrement: true });
           oStore.createIndex('date', 'date', { unique: false });
           oStore.createIndex('activity', 'activity', { unique: false });
         }
+        // v3 migration: no structural change needed (trace/distance_gps are optional fields)
       };
 
       req.onsuccess = (e) => {
