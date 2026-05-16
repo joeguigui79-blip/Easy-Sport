@@ -21,8 +21,6 @@ class GPSTracker {
     this._polyline = null;
     this._marker = null;
     this._leafletAvailable = false;
-    // Debug panel counters
-    this._dbg = { tilesOk: 0, tilesErr: 0, mapInit: null };
   }
 
   // ---- State ----
@@ -111,113 +109,14 @@ class GPSTracker {
     };
   }
 
-  // ---- Debug panel ----
-
-  _updateDebugPanel() {
-    const panel = document.getElementById('gps-debug-panel');
-    if (!panel || panel.classList.contains('dbg-hidden')) return;
-
-    const container = document.getElementById('tracking-map');
-    const cw = container ? container.offsetWidth : 0;
-    const ch = container ? container.offsetHeight : 0;
-
-    // Get SW version from cache name if available
-    let swVer = 'N/A';
-    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
-      // Will be filled async; use cached value
-      swVer = window._swCacheName || 'actif';
-    } else if ('serviceWorker' in navigator) {
-      swVer = 'aucun SW';
-    }
-
-    const lines = [
-      `Leaflet: ${typeof L !== 'undefined' ? 'L loaded ✓' : 'L MISSING ✗'}`,
-      `Container: ${cw}x${ch} px`,
-      `Map init: ${this._dbg.mapInit === null ? 'pas encore' : this._dbg.mapInit === true ? 'OK ✓' : 'FAIL ✗ ' + this._dbg.mapInitErr}`,
-      `Tuiles: ${this._dbg.tilesOk} OK / ${this._dbg.tilesErr} err`,
-      `SW: ${swVer}`,
-      `GPS state: ${this._state} | pts: ${this._trace.length}`
-    ];
-
-    const content = panel.querySelector('#dbg-content');
-    if (content) content.textContent = lines.join('\n');
-  }
-
-  createDebugPanel() {
-    // Avoid duplicates
-    const existing = document.getElementById('gps-debug-panel');
-    if (existing) existing.remove();
-
-    const panel = document.createElement('div');
-    panel.id = 'gps-debug-panel';
-    panel.className = 'gps-debug-panel';
-    panel.innerHTML = `
-      <div class="dbg-header">
-        <span class="dbg-title">DEBUG</span>
-        <button id="dbg-copy-btn" class="dbg-btn" title="Copier les logs">Copier</button>
-        <button id="dbg-close-btn" class="dbg-btn dbg-close" title="Fermer">X</button>
-      </div>
-      <pre id="dbg-content" class="dbg-content">Initialisation...</pre>
-    `;
-
-    panel.querySelector('#dbg-close-btn').addEventListener('click', () => {
-      panel.classList.add('dbg-hidden');
-    });
-
-    panel.querySelector('#dbg-copy-btn').addEventListener('click', () => {
-      const content = panel.querySelector('#dbg-content');
-      const text = content ? content.textContent : '';
-      const ua = navigator.userAgent;
-      const full = `=== Easy Sport GPS Debug ===\n${text}\nUA: ${ua}\n===`;
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(full).then(() => {
-          panel.querySelector('#dbg-copy-btn').textContent = 'Copie !';
-          setTimeout(() => {
-            const btn = panel.querySelector('#dbg-copy-btn');
-            if (btn) btn.textContent = 'Copier';
-          }, 2000);
-        }).catch(() => this._fallbackCopy(full));
-      } else {
-        this._fallbackCopy(full);
-      }
-    });
-
-    // Retrieve SW cache name asynchronously
-    if ('caches' in window) {
-      caches.keys().then(keys => {
-        const sw = keys.find(k => k.startsWith('easy-sport'));
-        if (sw) window._swCacheName = sw;
-        this._updateDebugPanel();
-      });
-    }
-
-    return panel;
-  }
-
-  _fallbackCopy(text) {
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
-    try { document.execCommand('copy'); } catch(e) {}
-    document.body.removeChild(ta);
-  }
-
   // ---- Map integration ----
 
   initMap(containerId) {
     console.log('[GPS] initMap called, containerId:', containerId);
 
-    // Reset debug counters
-    this._dbg = { tilesOk: 0, tilesErr: 0, mapInit: null };
-
     // Check Leaflet loaded
     if (typeof L === 'undefined') {
       console.warn('[GPS] Leaflet not available (L undefined)');
-      this._dbg.mapInit = false;
-      this._dbg.mapInitErr = 'L undefined';
-      this._updateDebugPanel();
       // Show visible error in container
       const cont = document.getElementById(containerId);
       if (cont) {
@@ -242,9 +141,6 @@ class GPSTracker {
     const container = document.getElementById(containerId);
     if (!container) {
       console.warn('[GPS] container #' + containerId + ' not found in DOM');
-      this._dbg.mapInit = false;
-      this._dbg.mapInitErr = 'container missing';
-      this._updateDebugPanel();
       return false;
     }
     const cw = container.offsetWidth;
@@ -264,18 +160,12 @@ class GPSTracker {
         crossOrigin: true
       });
 
-      // Hook tile events for debug counters
+      // Hook tile events for silent logging (useful for future debugging)
       tileLayer.on('tileload', () => {
-        this._dbg.tilesOk++;
-        this._updateDebugPanel();
+        // tile loaded OK
       });
       tileLayer.on('tileerror', (e) => {
-        this._dbg.tilesErr++;
         console.warn('[GPS] tileerror:', e.tile ? e.tile.src : e);
-        this._updateDebugPanel();
-      });
-      tileLayer.on('tileloadstart', () => {
-        this._updateDebugPanel();
       });
 
       tileLayer.addTo(this._map);
@@ -297,9 +187,6 @@ class GPSTracker {
 
       this._marker = L.marker([46.5, 2.5], { icon: pulseIcon }).addTo(this._map);
 
-      this._dbg.mapInit = true;
-      this._updateDebugPanel();
-
       // Force invalidateSize after overlay is fully painted (rAF + 50ms covers CSS transitions)
       requestAnimationFrame(() => {
         setTimeout(() => {
@@ -308,16 +195,12 @@ class GPSTracker {
             const h = container.offsetHeight;
             console.log('[GPS] invalidateSize called, container: ' + w + 'x' + h);
             this._map.invalidateSize({ animate: false });
-            this._updateDebugPanel();
           }
         }, 50);
       });
 
     } catch (err) {
       console.error('[GPS] map init error:', err);
-      this._dbg.mapInit = false;
-      this._dbg.mapInitErr = String(err).slice(0, 60);
-      this._updateDebugPanel();
       return false;
     }
 
@@ -349,7 +232,6 @@ class GPSTracker {
         if (this._map) {
           console.log('[GPS] invalidateSize (post-fullscreen toggle)');
           this._map.invalidateSize({ animate: false });
-          this._updateDebugPanel();
         }
       }, 350);
     }
@@ -385,7 +267,6 @@ class GPSTracker {
       if (this._state === 'running' && this._onUpdate) {
         this._onUpdate(this.getStats());
       }
-      this._updateDebugPanel();
     }, 1000);
   }
 
