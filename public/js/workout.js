@@ -102,8 +102,8 @@ class WorkoutSession {
   _renderDayInfo() {
     const d = this._dom;
     if (!d.dayInfo) return;
-    const todayType = Program.getTodayType();
-    const next = Program.getNextWorkout();
+    const cat = (typeof App !== 'undefined' && App.activeCategory) ? App.activeCategory : 'salle';
+    const todayType = Program.getTodayType(cat);
     const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
     const today = new Date();
     d.dayInfo.innerHTML = `

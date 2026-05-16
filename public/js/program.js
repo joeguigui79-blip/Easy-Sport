@@ -13,52 +13,117 @@ const DEFAULT_WEEKLY_PLAN = [
   { day: 6, label: 'Sam', type: 'upper', category: 'salle' }
 ];
 
+const DEFAULT_WEEKLY_PLAN_INTERIEUR = [
+  { day: 0, label: 'Dim', type: 'rest', category: 'interieur' },
+  { day: 1, label: 'Lun', type: 'upper_int', category: 'interieur' },
+  { day: 2, label: 'Mar', type: 'lower_int', category: 'interieur' },
+  { day: 3, label: 'Mer', type: 'rest', category: 'interieur' },
+  { day: 4, label: 'Jeu', type: 'full_int', category: 'interieur' },
+  { day: 5, label: 'Ven', type: 'hiit_int', category: 'interieur' },
+  { day: 6, label: 'Sam', type: 'yoga_int', category: 'interieur' }
+];
+
 const PROGRESSION_THRESHOLD = 3;
 const PROGRESSION_STEP = 2.5;
 
 class ProgramManager {
   constructor() {
     this.currentProgram = null;
+    // Per-category custom weekly plans and active programs
+    this._customWeeklyPlans = {}; // { salle: [...], interieur: [...] }
+    this._activePrograms = {};    // { salle: program, interieur: program }
+    // Legacy support
     this._customWeeklyPlan = null;
   }
 
   async init() {
-    const raw = await DB.getSetting('weeklyPlanCustom');
-    if (raw) {
-      this._customWeeklyPlan = JSON.parse(raw);
-      // Migration: ensure category field on existing plans
-      this._customWeeklyPlan = this._customWeeklyPlan.map(d => ({
-        ...d,
-        category: d.category || 'salle'
-      }));
+    // Load per-category plans
+    const rawSalle = await DB.getSetting('weeklyPlanCustom_salle');
+    const rawInt = await DB.getSetting('weeklyPlanCustom_interieur');
+    const rawLegacy = await DB.getSetting('weeklyPlanCustom');
+
+    if (rawSalle) {
+      this._customWeeklyPlans['salle'] = JSON.parse(rawSalle).map(d => ({ ...d, category: 'salle' }));
+    } else if (rawLegacy) {
+      // Migrate legacy plan -> salle
+      const legacy = JSON.parse(rawLegacy).map(d => ({ ...d, category: d.category || 'salle' }));
+      this._customWeeklyPlans['salle'] = legacy.filter(d => (d.category || 'salle') === 'salle');
+      await DB.setSetting('weeklyPlanCustom_salle', JSON.stringify(this._customWeeklyPlans['salle']));
     }
 
-    this.currentProgram = await DB.getActiveProgram();
-    if (!this.currentProgram) {
-      await this.generateProgram(this._customWeeklyPlan || DEFAULT_WEEKLY_PLAN);
+    if (rawInt) {
+      this._customWeeklyPlans['interieur'] = JSON.parse(rawInt).map(d => ({ ...d, category: 'interieur' }));
     }
+
+    // Load active programs per category
+    const allPrograms = await DB.getAllPrograms();
+    for (const p of allPrograms) {
+      // Migration: programs without category get 'salle'
+      if (!p.category) {
+        p.category = 'salle';
+        await DB.saveProgram(p);
+      }
+      if (p.active) {
+        this._activePrograms[p.category] = p;
+      }
+    }
+
+    // Ensure a salle program exists
+    if (!this._activePrograms['salle']) {
+      await this.generateProgram(this._customWeeklyPlans['salle'] || DEFAULT_WEEKLY_PLAN, 'salle');
+    }
+
+    // currentProgram kept for backward compat (salle)
+    this.currentProgram = this._activePrograms['salle'] || null;
     return this.currentProgram;
   }
 
-  getEffectiveWeeklyPlan() {
-    return this._customWeeklyPlan || DEFAULT_WEEKLY_PLAN;
+  getEffectiveWeeklyPlan(category) {
+    const cat = category || 'salle';
+    if (this._customWeeklyPlans[cat]) return this._customWeeklyPlans[cat];
+    if (cat === 'interieur') return DEFAULT_WEEKLY_PLAN_INTERIEUR;
+    return DEFAULT_WEEKLY_PLAN;
   }
 
-  async saveCustomWeeklyPlan(daySessionMap) {
-    // daySessionMap: { 0: { type:'rest', category:'salle' }, 1: { type:'upper', category:'salle' }, ... }
+  getProgramForCategory(category) {
+    const cat = category || 'salle';
+    return this._activePrograms[cat] || null;
+  }
+
+  async ensureProgramForCategory(category) {
+    const cat = category || 'salle';
+    if (!this._activePrograms[cat]) {
+      await this.generateProgram(this.getEffectiveWeeklyPlan(cat), cat);
+    }
+    return this._activePrograms[cat];
+  }
+
+  async saveCustomWeeklyPlan(daySessionMap, category) {
+    const cat = category || 'salle';
     const DAY_LABELS = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+    // Force all days to have the programme's locked category
     const weeklyPlan = Object.entries(daySessionMap).map(([day, info]) => ({
       day: parseInt(day),
       label: DAY_LABELS[parseInt(day)],
       type: info.type,
-      category: info.category || 'salle'
+      category: cat
     }));
-    this._customWeeklyPlan = weeklyPlan;
-    await DB.setSetting('weeklyPlanCustom', JSON.stringify(weeklyPlan));
-    await this.generateProgram(weeklyPlan);
+    this._customWeeklyPlans[cat] = weeklyPlan;
+    await DB.setSetting(`weeklyPlanCustom_${cat}`, JSON.stringify(weeklyPlan));
+    await this.generateProgram(weeklyPlan, cat);
+    // Update legacy key for backward compat if salle
+    if (cat === 'salle') {
+      this._customWeeklyPlan = weeklyPlan;
+      await DB.setSetting('weeklyPlanCustom', JSON.stringify(weeklyPlan));
+    }
   }
 
-  async generateProgram(weeklyPlan = DEFAULT_WEEKLY_PLAN) {
+  async generateProgram(weeklyPlan, category) {
+    const cat = category || 'salle';
+    // Default plan if none provided
+    if (!weeklyPlan) {
+      weeklyPlan = this.getEffectiveWeeklyPlan(cat);
+    }
     const startDate = this._getMonday(new Date());
     const weeks = [];
 
@@ -76,7 +141,7 @@ class ProgramManager {
           dayOfWeek: dayPlan.day,
           dayLabel: dayPlan.label,
           type: dayPlan.type,
-          category: dayPlan.category || 'salle',
+          category: cat,
           date: targetDate.toISOString().split('T')[0],
           completed: false
         });
@@ -84,8 +149,10 @@ class ProgramManager {
       weeks.push({ week: w + 1, sessions: weekSessions, completed: false });
     }
 
+    const catLabel = cat === 'salle' ? 'Sport en salle' : 'Sport d\'interieur';
     const program = {
-      name: 'Programme 4 semaines',
+      name: `Programme ${catLabel} - 4 semaines`,
+      category: cat,
       startDate: startDate.toISOString().split('T')[0],
       weeklyPlan,
       weeks,
@@ -93,42 +160,58 @@ class ProgramManager {
       createdAt: Date.now()
     };
 
-    const old = await DB.getAllPrograms();
-    for (const p of old) {
-      await DB.saveProgram({ ...p, active: false });
+    // Deactivate old programs of same category
+    const allPrograms = await DB.getAllPrograms();
+    for (const p of allPrograms) {
+      const pCat = p.category || 'salle';
+      if (pCat === cat && p.active) {
+        await DB.saveProgram({ ...p, active: false });
+      }
     }
 
     const id = await DB.saveProgram(program);
-    this.currentProgram = { ...program, id };
-    return this.currentProgram;
-  }
-
-  async getProgram() {
-    if (!this.currentProgram) {
-      this.currentProgram = await DB.getActiveProgram();
+    const saved = { ...program, id };
+    this._activePrograms[cat] = saved;
+    if (cat === 'salle') {
+      this.currentProgram = saved;
     }
-    return this.currentProgram;
+    return saved;
   }
 
-  getTodayType() {
+
+
+  async getProgram(category) {
+    const cat = category || 'salle';
+    if (!this._activePrograms[cat]) {
+      const all = await DB.getAllPrograms();
+      for (const p of all) {
+        if (p.active && (p.category || 'salle') === cat) {
+          this._activePrograms[cat] = p;
+        }
+      }
+    }
+    return this._activePrograms[cat] || null;
+  }
+
+  getTodayType(category) {
+    const cat = category || 'salle';
     const today = new Date().getDay();
-    const plan = this.getEffectiveWeeklyPlan();
+    const plan = this.getEffectiveWeeklyPlan(cat);
     const dayPlan = plan.find(d => d.day === today);
     return dayPlan ? dayPlan.type : 'rest';
   }
 
-  getTodayCategory() {
-    const today = new Date().getDay();
-    const plan = this.getEffectiveWeeklyPlan();
-    const dayPlan = plan.find(d => d.day === today);
-    return dayPlan ? (dayPlan.category || 'salle') : 'salle';
+  getTodayCategory(category) {
+    return category || 'salle';
   }
 
-  getNextWorkout() {
-    if (!this.currentProgram) return null;
+  getNextWorkout(category) {
+    const cat = category || 'salle';
+    const prog = this._activePrograms[cat];
+    if (!prog) return null;
     const today = new Date().toISOString().split('T')[0];
 
-    for (const week of this.currentProgram.weeks) {
+    for (const week of prog.weeks) {
       for (const session of week.sessions) {
         if (!session.completed && session.date >= today) {
           return { ...session, week: week.week };
@@ -139,14 +222,15 @@ class ProgramManager {
   }
 
   async markSessionCompleted(date, type, category) {
-    if (!this.currentProgram) return;
+    const cat = category || 'salle';
+    const prog = this._activePrograms[cat];
+    if (!prog) return;
     let found = false;
-    const updated = { ...this.currentProgram };
+    const updated = { ...prog, weeks: prog.weeks.map(w => ({ ...w, sessions: w.sessions.map(s => ({ ...s })) })) };
 
     for (const week of updated.weeks) {
       for (const session of week.sessions) {
-        const catMatch = category ? (session.category || 'salle') === category : true;
-        if (session.date === date && session.type === type && catMatch && !session.completed) {
+        if (session.date === date && session.type === type && !session.completed) {
           session.completed = true;
           found = true;
           break;
@@ -157,7 +241,8 @@ class ProgramManager {
 
     if (found) {
       await DB.saveProgram(updated);
-      this.currentProgram = updated;
+      this._activePrograms[cat] = updated;
+      if (cat === 'salle') this.currentProgram = updated;
     }
   }
 
@@ -189,10 +274,12 @@ class ProgramManager {
     return { suggest: false };
   }
 
-  getCycleProgress() {
-    if (!this.currentProgram) return 0;
+  getCycleProgress(category) {
+    const cat = category || 'salle';
+    const prog = this._activePrograms[cat];
+    if (!prog) return 0;
     let total = 0, done = 0;
-    for (const week of this.currentProgram.weeks) {
+    for (const week of prog.weeks) {
       for (const s of week.sessions) {
         total++;
         if (s.completed) done++;
@@ -210,33 +297,34 @@ class ProgramManager {
     return d;
   }
 
-  renderWeeklyPlan(container) {
+  renderWeeklyPlan(container, category) {
     container.innerHTML = '';
+    const cat = category || 'salle';
     const today = new Date().getDay();
-    const plan = this.getEffectiveWeeklyPlan();
+    const plan = this.getEffectiveWeeklyPlan(cat);
 
     plan.forEach(dayPlan => {
-      const cat = dayPlan.category || 'salle';
       const div = document.createElement('div');
       div.className = 'plan-day plan-day--' + cat + (dayPlan.day === today ? ' today' : '');
       div.innerHTML = `
         <div class="plan-day-label">${dayPlan.label}</div>
         <div class="plan-day-type">${WORKOUT_TYPE_ICONS[dayPlan.type] || '😴'}</div>
         <div class="plan-day-name">${WORKOUT_TYPE_LABELS[dayPlan.type] || 'Repos'}</div>
-        ${cat !== 'salle' ? `<div class="plan-day-cat">${CATEGORY_ICONS[cat] || ''}</div>` : ''}
       `;
       container.appendChild(div);
     });
   }
 
-  renderProgramWeeks(container) {
+  renderProgramWeeks(container, category) {
     container.innerHTML = '';
-    if (!this.currentProgram) {
+    const cat = category || 'salle';
+    const prog = this._activePrograms[cat];
+    if (!prog) {
       container.innerHTML = '<p class="empty-state">Aucun programme actif</p>';
       return;
     }
 
-    this.currentProgram.weeks.forEach((week, wi) => {
+    prog.weeks.forEach((week, wi) => {
       const card = document.createElement('div');
       card.className = 'program-week-card';
       const doneSessions = week.sessions.filter(s => s.completed).length;
@@ -252,17 +340,14 @@ class ProgramManager {
         </div>
         <div class="week-card-body ${isOpen ? 'open' : ''}">
           <div class="week-session-list">
-            ${week.sessions.map(s => {
-              const cat = s.category || 'salle';
-              return `
+            ${week.sessions.map(s => `
               <div class="week-session-item week-session-item--${cat}">
                 <span class="wsi-day">${s.dayLabel}</span>
-                <span class="wsi-cat">${CATEGORY_ICONS[cat] || ''}</span>
                 <span class="wsi-type">${WORKOUT_TYPE_ICONS[s.type] || '?'}</span>
                 <span class="wsi-name">${WORKOUT_TYPE_LABELS[s.type] || s.type}</span>
                 <span class="wsi-status">${s.completed ? '✅' : ''}</span>
               </div>
-            `}).join('')}
+            `).join('')}
           </div>
         </div>
       `;

@@ -4,13 +4,23 @@
 
 const OUTDOOR_ACTIVITIES = [
   { id: 'running', label: 'Course a pied', icon: '🏃' },
-  { id: 'walk', label: 'Marche rapide / nordique', icon: '🚶' },
+  { id: 'walk_fast', label: 'Marche rapide', icon: '🚶' },
+  { id: 'nordic_walk', label: 'Marche nordique', icon: '🥾' },
   { id: 'trail', label: 'Trail', icon: '⛰️' },
   { id: 'cycling_road', label: 'Velo de route', icon: '🚴' },
   { id: 'cycling_mtb', label: 'VTT', icon: '🏔️' },
-  { id: 'swimming', label: 'Natation', icon: '🏊' },
-  { id: 'hiking', label: 'Randonnee', icon: '🥾' },
-  { id: 'sprint', label: 'Sprint / fractionne', icon: '⚡' }
+  { id: 'swimming_open', label: 'Natation en eau libre', icon: '🏊' },
+  { id: 'swimming_outdoor', label: 'Natation en piscine ext.', icon: '🏊‍♀️' },
+  { id: 'hiking', label: 'Randonnee pedestre', icon: '🥾' },
+  { id: 'sprint', label: 'Sprint / fractionne', icon: '⚡' },
+  { id: 'roller', label: 'Roller / patin a roulettes', icon: '⛸️' },
+  { id: 'rowing', label: 'Aviron / kayak / canoe', icon: '🚣' },
+  { id: 'sup', label: 'Stand-up paddle (SUP)', icon: '🏄' },
+  { id: 'climbing_outdoor', label: 'Escalade ext. / via ferrata', icon: '🧗' },
+  { id: 'orienteering', label: 'Course d\'orientation', icon: '🧭' },
+  { id: 'street_workout', label: 'Parcours sportif / street workout', icon: '🤸' },
+  { id: 'boxing_outdoor', label: 'Boxe en exterieur', icon: '🥊' },
+  { id: 'crossfit_outdoor', label: 'Crossfit / HIIT en exterieur', icon: '🔥' }
 ];
 
 class OutdoorManager {

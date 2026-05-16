@@ -1,20 +1,20 @@
-const CACHE_NAME = 'easy-sport-v6';
+const CACHE_NAME = 'easy-sport-v7';
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 const BASE_WITH_SLASH = BASE_PATH.endsWith('/') ? BASE_PATH : `${BASE_PATH}/`;
 const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
 const ASSETS = [
   BASE_WITH_SLASH,
-  toBase('index.html?v=3'),
-  toBase('manifest.json?v=3'),
-  toBase('css/style.css?v=3'),
-  toBase('js/db.js?v=3'),
-  toBase('js/auth.js?v=3'),
-  toBase('js/exercises.js?v=3'),
-  toBase('js/workout.js?v=3'),
-  toBase('js/program.js?v=3'),
-  toBase('js/stats.js?v=3'),
-  toBase('js/outdoor.js?v=3'),
-  toBase('js/app.js?v=3'),
+  toBase('index.html?v=4'),
+  toBase('manifest.json?v=4'),
+  toBase('css/style.css?v=4'),
+  toBase('js/db.js?v=4'),
+  toBase('js/auth.js?v=4'),
+  toBase('js/exercises.js?v=4'),
+  toBase('js/workout.js?v=4'),
+  toBase('js/program.js?v=4'),
+  toBase('js/stats.js?v=4'),
+  toBase('js/outdoor.js?v=4'),
+  toBase('js/app.js?v=4'),
   toBase('icons/icon-192.svg'),
   toBase('icons/icon-512.svg')
 ];

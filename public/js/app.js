@@ -179,7 +179,7 @@ const App = {
         if (cat === 'exterieur') {
           this.navigate('outdoor');
         } else {
-          const next = Program.getNextWorkout();
+          const next = Program.getNextWorkout(cat);
           this.navigate('workout');
           if (next && next.type !== 'rest') {
             setTimeout(() => Workout.startWorkoutOfType(next.type), 100);
@@ -325,8 +325,10 @@ const App = {
   },
 
   async _renderDashboardTraining(cat) {
+    // Ensure program exists for this category
+    await Program.ensureProgramForCategory(cat);
     // Next workout
-    const next = Program.getNextWorkout();
+    const next = Program.getNextWorkout(cat);
     const badge = document.getElementById('next-workout-type');
     const preview = document.getElementById('next-workout-preview');
 
@@ -426,16 +428,17 @@ const App = {
     const container = document.getElementById('week-grid');
     if (!container) return;
 
+    const cat = this.activeCategory || 'salle';
     const days = ['D', 'L', 'M', 'Me', 'J', 'V', 'S'];
     const today = new Date().getDay();
-    const plan = Program.currentProgram ? Program.currentProgram.weeklyPlan : DEFAULT_WEEKLY_PLAN;
+    const prog = Program.getProgramForCategory(cat);
+    const plan = prog ? prog.weeklyPlan : Program.getEffectiveWeeklyPlan(cat);
 
     container.innerHTML = '';
     days.forEach((label, i) => {
       const dayPlan = plan.find(d => d.day === i);
       const isToday = i === today;
       const isRest = !dayPlan || dayPlan.type === 'rest';
-      const cat = dayPlan ? (dayPlan.category || 'salle') : 'salle';
 
       const div = document.createElement('div');
       div.className = 'week-day';
@@ -706,16 +709,12 @@ const App = {
     const saveBtn = document.getElementById('btn-save-weekly-plan');
     if (saveBtn) {
       saveBtn.addEventListener('click', async () => {
+        const cat = this.activeCategory || 'salle';
         const dayInfoMap = {};
         document.querySelectorAll('.day-plan-select').forEach(sel => {
-          dayInfoMap[sel.dataset.day] = {
-            type: sel.value,
-            category: sel.closest('.day-plan-row') ?
-              (sel.closest('.day-plan-row').querySelector('.day-cat-select')?.value || 'salle') :
-              'salle'
-          };
+          dayInfoMap[sel.dataset.day] = { type: sel.value };
         });
-        await Program.saveCustomWeeklyPlan(dayInfoMap);
+        await Program.saveCustomWeeklyPlan(dayInfoMap, cat);
         this.loadProgramPage();
         this.showToast('Programme enregistre !', 'success');
       });
@@ -726,37 +725,47 @@ const App = {
     const container = document.getElementById('week-plan-editor');
     if (!container) return;
 
+    const cat = this.activeCategory || 'salle';
     const DAY_NAMES = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-    const plan = Program.getEffectiveWeeklyPlan();
+    const plan = Program.getEffectiveWeeklyPlan(cat);
     const planMap = {};
-    plan.forEach(d => { planMap[d.day] = { type: d.type, category: d.category || 'salle' }; });
+    plan.forEach(d => { planMap[d.day] = { type: d.type }; });
+
+    // Session types available per category
+    const typeOptions = cat === 'interieur'
+      ? [
+          { v: 'upper_int', l: '💪 Haut du corps' },
+          { v: 'lower_int', l: '🦵 Bas du corps' },
+          { v: 'full_int', l: '⚡ Full body' },
+          { v: 'hiit_int', l: '🔥 HIIT' },
+          { v: 'yoga_int', l: '🧘 Yoga / Mobilite' },
+          { v: 'rest', l: '😴 Repos' }
+        ]
+      : [
+          { v: 'upper', l: '💪 Haut du corps' },
+          { v: 'lower', l: '🦵 Bas du corps' },
+          { v: 'full', l: '⚡ Full body' },
+          { v: 'cardio', l: '🏃 Cardio' },
+          { v: 'rest', l: '😴 Repos' }
+        ];
+
+    const optHtml = typeOptions.map(o => `<option value="${o.v}">${o.l}</option>`).join('');
 
     const order = [1, 2, 3, 4, 5, 6, 0];
     container.innerHTML = '';
 
     order.forEach(dayIdx => {
-      const current = planMap[dayIdx] || { type: 'rest', category: 'salle' };
+      const current = planMap[dayIdx] || { type: 'rest' };
       const row = document.createElement('div');
       row.className = 'day-plan-row';
+      // Build options with selected state
+      const optHtmlSelected = typeOptions.map(o =>
+        `<option value="${o.v}" ${current.type === o.v ? 'selected' : ''}>${o.l}</option>`
+      ).join('');
       row.innerHTML = `
         <span class="day-plan-label">${DAY_NAMES[dayIdx]}</span>
-        <select class="day-cat-select form-select day-cat-select-sm" data-day="${dayIdx}" title="Categorie">
-          <option value="salle" ${current.category === 'salle' ? 'selected' : ''}>🏋️</option>
-          <option value="interieur" ${current.category === 'interieur' ? 'selected' : ''}>🏠</option>
-          <option value="exterieur" ${current.category === 'exterieur' ? 'selected' : ''}>🏃</option>
-        </select>
         <select class="day-plan-select form-select" data-day="${dayIdx}">
-          <option value="upper"   ${current.type === 'upper'   ? 'selected' : ''}>💪 Haut</option>
-          <option value="lower"   ${current.type === 'lower'   ? 'selected' : ''}>🦵 Bas</option>
-          <option value="full"    ${current.type === 'full'    ? 'selected' : ''}>⚡ Full body</option>
-          <option value="cardio"  ${current.type === 'cardio'  ? 'selected' : ''}>🏃 Cardio</option>
-          <option value="upper_int" ${current.type === 'upper_int' ? 'selected' : ''}>💪 Haut (int.)</option>
-          <option value="lower_int" ${current.type === 'lower_int' ? 'selected' : ''}>🦵 Bas (int.)</option>
-          <option value="full_int"  ${current.type === 'full_int'  ? 'selected' : ''}>⚡ Full (int.)</option>
-          <option value="hiit_int"  ${current.type === 'hiit_int'  ? 'selected' : ''}>🔥 HIIT</option>
-          <option value="yoga_int"  ${current.type === 'yoga_int'  ? 'selected' : ''}>🧘 Yoga</option>
-          <option value="running"   ${current.type === 'running'   ? 'selected' : ''}>🏃 Running</option>
-          <option value="rest"    ${current.type === 'rest'    ? 'selected' : ''}>😴 Repos</option>
+          ${optHtmlSelected}
         </select>
       `;
       container.appendChild(row);
@@ -815,10 +824,33 @@ const App = {
   },
 
   loadProgramPage() {
-    const prog = Program.currentProgram;
-    if (!prog) return;
+    const cat = this.activeCategory || 'salle';
+    const prog = Program.getProgramForCategory(cat);
+    if (!prog) {
+      // Trigger generation then reload
+      Program.ensureProgramForCategory(cat).then(() => this.loadProgramPage());
+      return;
+    }
 
-    const pct = Program.getCycleProgress();
+    // Update extype tabs visibility based on category
+    const extypeTabs = document.querySelectorAll('.extype-tab');
+    const salleTypes = ['upper', 'lower', 'full', 'cardio'];
+    const intTypes = ['upper_int', 'lower_int', 'full_int', 'hiit_int', 'yoga_int'];
+    const activeTypes = cat === 'interieur' ? intTypes : salleTypes;
+    let firstVisible = null;
+    extypeTabs.forEach(tab => {
+      const isVisible = activeTypes.includes(tab.dataset.extype);
+      tab.style.display = isVisible ? '' : 'none';
+      if (isVisible && !firstVisible) firstVisible = tab;
+    });
+    // Activate first visible tab
+    if (firstVisible) {
+      extypeTabs.forEach(t => t.classList.remove('active'));
+      firstVisible.classList.add('active');
+      this._renderExercisePrefList(firstVisible.dataset.extype);
+    }
+
+    const pct = Program.getCycleProgress(cat);
     const ringEl = document.getElementById('cycle-ring-fill');
     const circumference = 2 * Math.PI * 24;
     if (ringEl) ringEl.style.strokeDashoffset = circumference * (1 - pct / 100);
@@ -838,14 +870,9 @@ const App = {
       subtitleEl.textContent = `${start} → ${end}`;
     }
 
-    Program.renderWeeklyPlan(document.getElementById('weekly-plan'));
+    Program.renderWeeklyPlan(document.getElementById('weekly-plan'), cat);
     this._renderWeekPlanEditor();
-    Program.renderProgramWeeks(document.getElementById('program-weeks'));
-
-    const activeExType = document.querySelector('.extype-tab.active');
-    if (activeExType) {
-      this._renderExercisePrefList(activeExType.dataset.extype);
-    }
+    Program.renderProgramWeeks(document.getElementById('program-weeks'), cat);
   },
 
   _registerSW() {
