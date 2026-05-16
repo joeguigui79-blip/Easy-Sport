@@ -1,4 +1,4 @@
-const CACHE_NAME = 'easy-sport-v9';
+const CACHE_NAME = 'easy-sport-v10';
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 const BASE_WITH_SLASH = BASE_PATH.endsWith('/') ? BASE_PATH : `${BASE_PATH}/`;
 const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
@@ -6,17 +6,17 @@ const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
 // App assets (cache-first)
 const ASSETS = [
   BASE_WITH_SLASH,
-  toBase('index.html?v=6'),
+  toBase('index.html?v=7'),
   toBase('manifest.json?v=5'),
-  toBase('css/style.css?v=6'),
+  toBase('css/style.css?v=7'),
   toBase('js/db.js?v=6'),
   toBase('js/auth.js?v=5'),
   toBase('js/exercises.js?v=5'),
   toBase('js/workout.js?v=5'),
   toBase('js/program.js?v=5'),
   toBase('js/stats.js?v=5'),
-  toBase('js/gps-tracker.js?v=6'),
-  toBase('js/outdoor.js?v=6'),
+  toBase('js/gps-tracker.js?v=7'),
+  toBase('js/outdoor.js?v=7'),
   toBase('js/app.js?v=5'),
   toBase('icons/icon-192.svg'),
   toBase('icons/icon-512.svg')

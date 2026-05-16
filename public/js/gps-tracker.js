@@ -112,8 +112,9 @@ class GPSTracker {
   // ---- Map integration ----
 
   initMap(containerId) {
+    console.log('[GPS] initMap called, containerId:', containerId);
     if (typeof L === 'undefined') {
-      console.warn('GPSTracker: Leaflet not available');
+      console.warn('[GPS] Leaflet not available (L undefined)');
       return false;
     }
     this._leafletAvailable = true;
@@ -125,6 +126,15 @@ class GPSTracker {
       this._polyline = null;
       this._marker = null;
     }
+
+    const container = document.getElementById(containerId);
+    if (!container) {
+      console.warn('[GPS] container #' + containerId + ' not found in DOM');
+      return false;
+    }
+    const cw = container.offsetWidth;
+    const ch = container.offsetHeight;
+    console.log('[GPS] container size at init: ' + cw + 'x' + ch);
 
     this._map = L.map(containerId, {
       zoomControl: true,
@@ -153,6 +163,18 @@ class GPSTracker {
 
     this._marker = L.marker([46.5, 2.5], { icon: pulseIcon }).addTo(this._map);
 
+    // Force invalidateSize after overlay is fully painted (rAF + 50ms covers CSS transitions)
+    requestAnimationFrame(() => {
+      setTimeout(() => {
+        if (this._map) {
+          const w = container.offsetWidth;
+          const h = container.offsetHeight;
+          console.log('[GPS] invalidateSize called, container: ' + w + 'x' + h);
+          this._map.invalidateSize({ animate: false });
+        }
+      }, 50);
+    });
+
     return true;
   }
 
@@ -176,7 +198,13 @@ class GPSTracker {
 
   invalidateMapSize() {
     if (this._map) {
-      setTimeout(() => this._map.invalidateSize(), 100);
+      // Wait for CSS transition (300ms on .tracking-map-wrapper) to complete
+      setTimeout(() => {
+        if (this._map) {
+          console.log('[GPS] invalidateSize (post-fullscreen toggle)');
+          this._map.invalidateSize({ animate: false });
+        }
+      }, 350);
     }
   }
 

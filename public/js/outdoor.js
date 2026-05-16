@@ -270,10 +270,12 @@ class OutdoorManager {
     this._activeTrackingActivity = activity;
     this._mapFullscreen = false;
 
-    // Init map
-    setTimeout(() => {
-      GPS.initMap('tracking-map');
-    }, 150);
+    // Init map — use rAF to ensure overlay is rendered before Leaflet measures container
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        GPS.initMap('tracking-map');
+      });
+    });
 
     // Fullscreen map toggle
     overlay.querySelector('#btn-map-fullscreen').addEventListener('click', () => {
