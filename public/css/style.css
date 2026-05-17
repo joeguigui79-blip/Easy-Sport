@@ -2702,3 +2702,243 @@ body.cat-exterieur {
   .tracking-map { min-height: 400px; }
 }
 
+/* ============================================================
+   PHASE C — Route planner / guidance styles
+   ============================================================ */
+
+/* ---- Direction indicator bar ---- */
+.direction-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 10px var(--space-md);
+  background: rgba(59, 130, 246, 0.15);
+  border-bottom: 1px solid rgba(59, 130, 246, 0.25);
+  flex-shrink: 0;
+  min-height: 42px;
+}
+
+.di-text {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: #93c5fd;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.di-offroute {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-warning);
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: var(--radius-full);
+  padding: 3px 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Map wrapper adjusted when indicator is present */
+.tracking-map-wrapper--with-indicator {
+  /* slightly shorter to accommodate indicator bar */
+}
+
+/* ---- Recalculate button overlay ---- */
+.btn-recalculate {
+  position: absolute;
+  bottom: 50px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: var(--color-warning);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-full);
+  padding: 8px 16px;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+/* ---- Tracking header right zone ---- */
+.tracking-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+/* ---- Route generation modal styles ---- */
+.route-dist-btns {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-xs);
+}
+
+.route-dist-btn {
+  padding: 9px 14px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  flex: 1;
+  min-width: 56px;
+  text-align: center;
+}
+
+.route-dist-btn.active,
+.route-dist-btn:hover {
+  border-color: var(--color-info);
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.12);
+}
+
+.route-type-btns,
+.guidance-btns {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.route-type-btn,
+.guidance-btn {
+  flex: 1;
+  padding: 9px 10px;
+  background: var(--bg-card);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.route-type-btn.active,
+.guidance-btn.active,
+.route-type-btn:hover,
+.guidance-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(224, 64, 251, 0.1);
+}
+
+/* ---- Route preview stats ---- */
+.route-preview-stat-row {
+  display: flex;
+  justify-content: space-around;
+  gap: var(--space-sm);
+  padding: var(--space-sm);
+  background: rgba(59, 130, 246, 0.1);
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.route-preview-stat-row strong {
+  color: #93c5fd;
+}
+
+/* ---- Back step button ---- */
+.btn-back-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  padding: 4px 0;
+  margin-bottom: var(--space-md);
+  transition: color var(--transition-fast);
+}
+
+.btn-back-step:hover { color: var(--text-primary); }
+
+/* ---- Favorites list ---- */
+.favorites-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.fav-route-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  transition: border-color var(--transition-fast);
+}
+
+.fav-route-item:hover { border-color: var(--color-exterieur); }
+
+.fri-info { flex: 1; min-width: 0; }
+.fri-name {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.fri-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.fri-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-shrink: 0;
+}
+
+/* ---- Save as favorite button (in save modal) ---- */
+.save-as-fav-row {
+  margin-bottom: var(--space-md);
+  text-align: center;
+}
+
+.btn-fav-route {
+  background: rgba(234, 179, 8, 0.12);
+  border: 1.5px solid rgba(234, 179, 8, 0.4);
+  border-radius: var(--radius-md);
+  color: #fbbf24;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  padding: 10px 20px;
+  cursor: pointer;
+  width: 100%;
+  transition: all var(--transition-fast);
+}
+
+.btn-fav-route:hover {
+  background: rgba(234, 179, 8, 0.2);
+  border-color: #fbbf24;
+}
+
+/* ---- GraphHopper API key modal ---- */
+#gh-key-overlay ol li a { text-decoration: underline; }
+
+/* ---- Ostart choices enhanced ---- */
+.ostart-choices { display: flex; flex-direction: column; gap: var(--space-sm); }
+
+

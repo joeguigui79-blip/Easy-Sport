@@ -1,17 +1,19 @@
 /**
  * db.js - IndexedDB wrapper for Easy Sport
- * Stores: exercises, workouts, programs, settings, outdoorSessions
+ * v4: added outdoorRoutes store (Phase C: favorites)
+ * Stores: exercises, workouts, programs, settings, outdoorSessions, outdoorRoutes
  */
 
 const DB_NAME = 'EasySportDB';
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 
 const STORES = {
   EXERCISES: 'exercises',
   WORKOUTS: 'workouts',
   PROGRAMS: 'programs',
   SETTINGS: 'settings',
-  OUTDOOR_SESSIONS: 'outdoorSessions'
+  OUTDOOR_SESSIONS: 'outdoorSessions',
+  OUTDOOR_ROUTES: 'outdoorRoutes'
 };
 
 class EasySportDB {
@@ -53,14 +55,20 @@ class EasySportDB {
         }
 
         // Outdoor sessions store (Phase A: manual entry / Phase B: GPS)
-        // Fields: id, date, activity, category, durationMin, distanceKm, distance_gps,
-        //         elevationM, pace, location, feeling, notes, trace (array of {lat,lng,ts,alt?})
         if (!db.objectStoreNames.contains(STORES.OUTDOOR_SESSIONS)) {
           const oStore = db.createObjectStore(STORES.OUTDOOR_SESSIONS, { keyPath: 'id', autoIncrement: true });
           oStore.createIndex('date', 'date', { unique: false });
           oStore.createIndex('activity', 'activity', { unique: false });
         }
-        // v3 migration: no structural change needed (trace/distance_gps are optional fields)
+
+        // v4: Outdoor routes (favorites) store — Phase C
+        // Fields: id, name, distance_km, profile, pathType, points: [[lat,lng],...],
+        //         instructions: [...], created_at, used_count
+        if (!db.objectStoreNames.contains(STORES.OUTDOOR_ROUTES)) {
+          const rStore = db.createObjectStore(STORES.OUTDOOR_ROUTES, { keyPath: 'id', autoIncrement: true });
+          rStore.createIndex('used_count', 'used_count', { unique: false });
+          rStore.createIndex('created_at', 'created_at', { unique: false });
+        }
       };
 
       req.onsuccess = (e) => {
@@ -235,6 +243,51 @@ class EasySportDB {
     await this.ready();
     const store = this._tx(STORES.OUTDOOR_SESSIONS, 'readwrite');
     return this._promisify(store.delete(id));
+  }
+
+  // ---- OUTDOOR ROUTES (Phase C: favorites) ----
+
+  async addOutdoorRoute(route) {
+    await this.ready();
+    const store = this._tx(STORES.OUTDOOR_ROUTES, 'readwrite');
+    return this._promisify(store.add({
+      ...route,
+      used_count: route.used_count || 0,
+      created_at: route.created_at || Date.now()
+    }));
+  }
+
+  async getAllOutdoorRoutes() {
+    await this.ready();
+    const all = await this._promisify(this._tx(STORES.OUTDOOR_ROUTES).getAll());
+    // Sort by used_count desc
+    return all.sort((a, b) => (b.used_count || 0) - (a.used_count || 0));
+  }
+
+  async getOutdoorRouteById(id) {
+    await this.ready();
+    return this._promisify(this._tx(STORES.OUTDOOR_ROUTES).get(id));
+  }
+
+  async updateOutdoorRoute(route) {
+    await this.ready();
+    const store = this._tx(STORES.OUTDOOR_ROUTES, 'readwrite');
+    return this._promisify(store.put(route));
+  }
+
+  async deleteOutdoorRoute(id) {
+    await this.ready();
+    const store = this._tx(STORES.OUTDOOR_ROUTES, 'readwrite');
+    return this._promisify(store.delete(id));
+  }
+
+  async incrementRouteUsage(id) {
+    await this.ready();
+    const route = await this.getOutdoorRouteById(id);
+    if (route) {
+      route.used_count = (route.used_count || 0) + 1;
+      return this.updateOutdoorRoute(route);
+    }
   }
 }
 

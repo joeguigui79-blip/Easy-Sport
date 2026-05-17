@@ -492,9 +492,9 @@ const App = {
               this.loadOutdoorPage();
             }, null);
           },
-          // GPS mode
-          (activity) => {
-            Outdoor.showTrackingScreen(activity);
+          // GPS mode (Phase C: options = { mode, route, guidanceMode })
+          (activity, options) => {
+            Outdoor.showTrackingScreen(activity, options);
           }
         );
       });

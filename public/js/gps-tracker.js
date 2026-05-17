@@ -1,6 +1,7 @@
 /**
- * gps-tracker.js - GPS tracking module for Easy Sport outdoor sessions (Phase B)
- * Handles watchPosition, distance calculation (Haversine), pace, elevation
+ * gps-tracker.js - GPS tracking module for Easy Sport outdoor sessions
+ * Phase B: watchPosition, distance, pace, elevation
+ * Phase C: planned route display (blue polyline), waypoint marker, guidance update hook
  */
 
 class GPSTracker {
@@ -17,10 +18,15 @@ class GPSTracker {
     this._recentPoints = []; // for instantaneous pace (30s window)
     this._onUpdate = null;   // callback(stats)
     this._onError = null;    // callback(err)
+    this._onGuidance = null; // callback(guidanceResult) - Phase C
     this._map = null;
-    this._polyline = null;
-    this._marker = null;
+    this._polyline = null;         // red - user trace
+    this._routePolyline = null;    // blue - planned route
+    this._waypointMarker = null;   // blue marker - next waypoint
+    this._marker = null;           // position marker
     this._leafletAvailable = false;
+    this._routePlanner = null;     // Phase C: injected planner
+    this._routeGuidance = null;    // Phase C: injected guidance
   }
 
   // ---- State ----
@@ -117,7 +123,6 @@ class GPSTracker {
     // Check Leaflet loaded
     if (typeof L === 'undefined') {
       console.warn('[GPS] Leaflet not available (L undefined)');
-      // Show visible error in container
       const cont = document.getElementById(containerId);
       if (cont) {
         cont.style.background = '#1a1a1a';
@@ -135,6 +140,8 @@ class GPSTracker {
       this._map.remove();
       this._map = null;
       this._polyline = null;
+      this._routePolyline = null;
+      this._waypointMarker = null;
       this._marker = null;
     }
 
@@ -160,16 +167,22 @@ class GPSTracker {
         crossOrigin: true
       });
 
-      // Hook tile events for silent logging (useful for future debugging)
-      tileLayer.on('tileload', () => {
-        // tile loaded OK
-      });
       tileLayer.on('tileerror', (e) => {
         console.warn('[GPS] tileerror:', e.tile ? e.tile.src : e);
       });
 
       tileLayer.addTo(this._map);
 
+      // Blue polyline for planned route (Phase C) - drawn first (below)
+      this._routePolyline = L.polyline([], {
+        color: '#3b82f6',
+        weight: 4,
+        opacity: 0.7,
+        lineJoin: 'round',
+        dashArray: null
+      }).addTo(this._map);
+
+      // Red polyline for user trace (Phase B)
       this._polyline = L.polyline([], {
         color: '#ef4444',
         weight: 4,
@@ -187,7 +200,16 @@ class GPSTracker {
 
       this._marker = L.marker([46.5, 2.5], { icon: pulseIcon }).addTo(this._map);
 
-      // Force invalidateSize after overlay is fully painted (rAF + 50ms covers CSS transitions)
+      // Waypoint marker for next turn (Phase C)
+      const waypointIcon = L.divIcon({
+        className: '',
+        html: '<div style="width:16px;height:16px;background:#3b82f6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 6px rgba(59,130,246,0.8)"></div>',
+        iconSize: [16, 16],
+        iconAnchor: [8, 8]
+      });
+      this._waypointMarker = L.marker([0, 0], { icon: waypointIcon, opacity: 0 }).addTo(this._map);
+
+      // Force invalidateSize after overlay is fully painted
       requestAnimationFrame(() => {
         setTimeout(() => {
           if (this._map) {
@@ -207,10 +229,48 @@ class GPSTracker {
     return true;
   }
 
+  // ---- Phase C: inject planned route onto map ----
+
+  setPlannedRoute(routePoints) {
+    if (!this._map || !this._leafletAvailable) return;
+    if (!routePoints || !routePoints.length) {
+      this._routePolyline.setLatLngs([]);
+      return;
+    }
+    this._routePolyline.setLatLngs(routePoints);
+    // Fit map to show whole route
+    try {
+      const bounds = this._routePolyline.getBounds();
+      if (bounds.isValid()) {
+        this._map.fitBounds(bounds, { padding: [20, 20] });
+      }
+    } catch (e) {}
+  }
+
+  clearPlannedRoute() {
+    if (this._routePolyline) this._routePolyline.setLatLngs([]);
+    if (this._waypointMarker) this._waypointMarker.setOpacity(0);
+  }
+
+  // ---- Phase C: attach planner + guidance ----
+
+  attachGuidance(routePlanner, routeGuidance, onGuidance) {
+    this._routePlanner = routePlanner;
+    this._routeGuidance = routeGuidance;
+    this._onGuidance = onGuidance;
+  }
+
+  detachGuidance() {
+    this._routePlanner = null;
+    this._routeGuidance = null;
+    this._onGuidance = null;
+  }
+
   _updateMap(lat, lng) {
     if (!this._map || !this._leafletAvailable) return;
     const latlng = [lat, lng];
 
+    // Update red trace
     if (this._trace.length > 0) {
       const latLngs = this._trace.map(p => [p.lat, p.lng]);
       this._polyline.setLatLngs(latLngs);
@@ -218,7 +278,18 @@ class GPSTracker {
 
     this._marker.setLatLng(latlng);
 
-    // Soft auto-pan (only if marker is near edge of view)
+    // Update waypoint marker (Phase C)
+    if (this._routePlanner && this._routePlanner.getCurrentRoute()) {
+      const next = this._routePlanner.getNextInstruction(lat, lng);
+      if (next && next.instruction.sign !== 0 && next.instruction.sign !== 5) {
+        this._waypointMarker.setLatLng([next.instruction.lat, next.instruction.lng]);
+        this._waypointMarker.setOpacity(1);
+      } else {
+        this._waypointMarker.setOpacity(0);
+      }
+    }
+
+    // Soft auto-pan
     const bounds = this._map.getBounds();
     if (!bounds.contains(latlng)) {
       this._map.panTo(latlng, { animate: true, duration: 0.5 });
@@ -227,7 +298,6 @@ class GPSTracker {
 
   invalidateMapSize() {
     if (this._map) {
-      // Wait for CSS transition (300ms on .tracking-map-wrapper) to complete
       setTimeout(() => {
         if (this._map) {
           console.log('[GPS] invalidateSize (post-fullscreen toggle)');
@@ -274,7 +344,6 @@ class GPSTracker {
     if (this._state !== 'running') return;
     this._state = 'paused';
     this._pauseTs = Date.now();
-    // Accumulate active time up to now
     if (this._startTs) {
       this._activeDurationMs += Date.now() - this._startTs;
       this._startTs = null;
@@ -325,7 +394,6 @@ class GPSTracker {
 
     if (this._lastPoint) {
       const dist = this._haversine(this._lastPoint.lat, this._lastPoint.lng, lat, lng);
-      // Ignore implausible jumps (>100m/s ~ 360km/h)
       const dtSec = (point.ts - this._lastPoint.ts) / 1000;
       const speed = dtSec > 0 ? dist * 1000 / dtSec : 0;
       if (speed > 100) return; // filter GPS jump
@@ -338,6 +406,12 @@ class GPSTracker {
     this._lastPoint = point;
 
     this._updateMap(lat, lng);
+
+    // Phase C: guidance update
+    if (this._routePlanner && this._routeGuidance) {
+      const guidanceResult = this._routeGuidance.update(lat, lng, this._routePlanner);
+      if (this._onGuidance) this._onGuidance(guidanceResult);
+    }
 
     if (this._onUpdate) this._onUpdate(this.getStats());
   }

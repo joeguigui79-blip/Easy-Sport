@@ -1,4 +1,4 @@
-const CACHE_NAME = 'easy-sport-v12';
+const CACHE_NAME = 'easy-sport-v13';
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 const BASE_WITH_SLASH = BASE_PATH.endsWith('/') ? BASE_PATH : `${BASE_PATH}/`;
 const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
@@ -6,18 +6,20 @@ const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
 // App assets (cache-first)
 const ASSETS = [
   BASE_WITH_SLASH,
-  toBase('index.html?v=9'),
+  toBase('index.html?v=10'),
   toBase('manifest.json?v=5'),
-  toBase('css/style.css?v=9'),
-  toBase('js/db.js?v=6'),
+  toBase('css/style.css?v=10'),
+  toBase('js/db.js?v=7'),
   toBase('js/auth.js?v=5'),
   toBase('js/exercises.js?v=5'),
   toBase('js/workout.js?v=5'),
   toBase('js/program.js?v=5'),
   toBase('js/stats.js?v=5'),
-  toBase('js/gps-tracker.js?v=9'),
-  toBase('js/outdoor.js?v=9'),
-  toBase('js/app.js?v=5'),
+  toBase('js/route-planner.js?v=1'),
+  toBase('js/route-guidance.js?v=1'),
+  toBase('js/gps-tracker.js?v=10'),
+  toBase('js/outdoor.js?v=10'),
+  toBase('js/app.js?v=6'),
   toBase('icons/icon-192.svg'),
   toBase('icons/icon-512.svg')
 ];
@@ -49,14 +51,15 @@ self.addEventListener('fetch', (e) => {
 
   const url = new URL(e.request.url);
 
-  // *** BYPASS TOTAL pour CDN externes (tuiles OSM, Leaflet, CartoCDN) ***
+  // *** BYPASS TOTAL pour CDN externes (tuiles OSM, Leaflet, CartoCDN, GraphHopper) ***
   // Ne pas appeler e.respondWith() = le navigateur fait la requête directement
   if (
     url.hostname.includes('tile.openstreetmap.org') ||
     url.hostname.includes('unpkg.com') ||
     url.hostname.includes('basemaps.cartocdn.com') ||
     url.hostname.includes('tile.opentopomap.org') ||
-    url.hostname.includes('stamen-tiles.a.ssl.fastly.net')
+    url.hostname.includes('stamen-tiles.a.ssl.fastly.net') ||
+    url.hostname.includes('graphhopper.com')
   ) {
     return; // BYPASS — pas d'e.respondWith()
   }
