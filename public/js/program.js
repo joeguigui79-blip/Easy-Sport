@@ -320,12 +320,18 @@ class ProgramManager {
     const plan = this.getEffectiveWeeklyPlan(cat);
 
     plan.forEach(dayPlan => {
+      const icon = WORKOUT_TYPE_ICONS[dayPlan.type]
+        || (cat === 'exterieur' ? Outdoor.getActivityIcon(dayPlan.type) : null)
+        || '😴';
+      const label = WORKOUT_TYPE_LABELS[dayPlan.type]
+        || (cat === 'exterieur' ? Outdoor.getActivityLabel(dayPlan.type) : null)
+        || 'Repos';
       const div = document.createElement('div');
       div.className = 'plan-day plan-day--' + cat + (dayPlan.day === today ? ' today' : '');
       div.innerHTML = `
         <div class="plan-day-label">${dayPlan.label}</div>
-        <div class="plan-day-type">${WORKOUT_TYPE_ICONS[dayPlan.type] || '😴'}</div>
-        <div class="plan-day-name">${WORKOUT_TYPE_LABELS[dayPlan.type] || 'Repos'}</div>
+        <div class="plan-day-type">${icon}</div>
+        <div class="plan-day-name">${label}</div>
       `;
       container.appendChild(div);
     });
@@ -356,14 +362,19 @@ class ProgramManager {
         </div>
         <div class="week-card-body ${isOpen ? 'open' : ''}">
           <div class="week-session-list">
-            ${week.sessions.map(s => `
+            ${week.sessions.map(s => {
+              const sIcon = WORKOUT_TYPE_ICONS[s.type]
+                || (cat === 'exterieur' ? Outdoor.getActivityIcon(s.type) : '?');
+              const sLabel = WORKOUT_TYPE_LABELS[s.type]
+                || (cat === 'exterieur' ? Outdoor.getActivityLabel(s.type) : s.type);
+              return `
               <div class="week-session-item week-session-item--${cat}">
                 <span class="wsi-day">${s.dayLabel}</span>
-                <span class="wsi-type">${WORKOUT_TYPE_ICONS[s.type] || '?'}</span>
-                <span class="wsi-name">${WORKOUT_TYPE_LABELS[s.type] || s.type}</span>
+                <span class="wsi-type">${sIcon}</span>
+                <span class="wsi-name">${sLabel}</span>
                 <span class="wsi-status">${s.completed ? '✅' : ''}</span>
-              </div>
-            `).join('')}
+              </div>`;
+            }).join('')}
           </div>
         </div>
       `;

@@ -2941,4 +2941,60 @@ body.cat-exterieur {
 /* ---- Ostart choices enhanced ---- */
 .ostart-choices { display: flex; flex-direction: column; gap: var(--space-sm); }
 
+/* ================================================================
+   OUTDOOR ACTIVITIES — catalogue personnalisable (page Exercices)
+================================================================ */
+
+/* Header row with "+ Ajouter" button */
+.outdoor-act-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: var(--space-sm) var(--space-md);
+  margin-bottom: var(--space-xs);
+}
+
+/* Activity item: same structure as .exercise-item but with delete icon */
+.outdoor-activity-item {
+  cursor: default;
+}
+.outdoor-activity-item:active {
+  transform: none;
+  background: var(--bg-card);
+}
+
+/* Delete (trash) button on each activity row */
+.outdoor-act-delete {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  opacity: 0.7;
+  transition: opacity var(--transition-fast), background var(--transition-fast);
+}
+.outdoor-act-delete:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.12);
+}
+.outdoor-act-delete:active {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.2);
+}
+
+/* "Add activity" modal — icon input is narrow */
+.outdoor-icon-input {
+  max-width: 80px;
+  font-size: 1.5rem;
+  text-align: center;
+  letter-spacing: 0.1em;
+}
+
+/* Hint text below form inputs */
+.form-hint {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
 

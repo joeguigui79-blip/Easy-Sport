@@ -5,7 +5,10 @@
  * Phase C: itineraires GraphHopper + guidage + favoris
  */
 
-const OUTDOOR_ACTIVITIES = [
+// ============================================================
+// DEFAULT outdoor activities (seed / fallback)
+// ============================================================
+const OUTDOOR_ACTIVITIES_DEFAULT = [
   { id: 'running', label: 'Course a pied', icon: '🏃' },
   { id: 'walk_fast', label: 'Marche rapide', icon: '🚶' },
   { id: 'nordic_walk', label: 'Marche nordique', icon: '🥾' },
@@ -25,6 +28,54 @@ const OUTDOOR_ACTIVITIES = [
   { id: 'boxing_outdoor', label: 'Boxe en exterieur', icon: '🥊' },
   { id: 'crossfit_outdoor', label: 'Crossfit / HIIT en exterieur', icon: '🔥' }
 ];
+
+// Keep backward-compat alias (used in legacy code referencing OUTDOOR_ACTIVITIES directly)
+const OUTDOOR_ACTIVITIES = OUTDOOR_ACTIVITIES_DEFAULT;
+
+// ============================================================
+// Persistence helpers — localStorage
+// ============================================================
+const OUTDOOR_ACTIVITIES_KEY = 'easy-sport.outdoor-activities-custom';
+
+/**
+ * Returns the effective list of outdoor activities.
+ * If the user has customized the list, that list is returned.
+ * Otherwise, the 18 defaults are used.
+ */
+function getOutdoorActivities() {
+  try {
+    const raw = localStorage.getItem(OUTDOOR_ACTIVITIES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {}
+  return OUTDOOR_ACTIVITIES_DEFAULT.slice();
+}
+
+/**
+ * Adds a custom activity and persists the list.
+ * @param {{ id: string, label: string, icon: string }} activity
+ */
+function addOutdoorActivity(activity) {
+  const list = getOutdoorActivities();
+  // Avoid duplicate id
+  if (list.some(a => a.id === activity.id)) return;
+  list.push(activity);
+  localStorage.setItem(OUTDOOR_ACTIVITIES_KEY, JSON.stringify(list));
+}
+
+/**
+ * Removes an activity by id and persists the list.
+ * If no custom list exists yet, initializes from defaults then removes.
+ * @param {string} id
+ */
+function deleteOutdoorActivity(id) {
+  let list = getOutdoorActivities();
+  // If list hasn't been customized yet, initialize it first
+  if (!localStorage.getItem(OUTDOOR_ACTIVITIES_KEY)) {
+    localStorage.setItem(OUTDOOR_ACTIVITIES_KEY, JSON.stringify(list));
+  }
+  list = list.filter(a => a.id !== id);
+  localStorage.setItem(OUTDOOR_ACTIVITIES_KEY, JSON.stringify(list));
+}
 
 class OutdoorManager {
   constructor() {
@@ -52,12 +103,15 @@ class OutdoorManager {
   getRoutes() { return this._routes; }
 
   getActivityLabel(id) {
-    const a = OUTDOOR_ACTIVITIES.find(x => x.id === id);
+    const activities = getOutdoorActivities();
+    const a = activities.find(x => x.id === id);
+    // Graceful fallback: show raw id if unknown (sessions with deleted types are preserved)
     return a ? a.label : id;
   }
 
   getActivityIcon(id) {
-    const a = OUTDOOR_ACTIVITIES.find(x => x.id === id);
+    const activities = getOutdoorActivities();
+    const a = activities.find(x => x.id === id);
     return a ? a.icon : '🏃';
   }
 
@@ -184,7 +238,7 @@ class OutdoorManager {
     const existing = document.getElementById('outdoor-start-overlay');
     if (existing) existing.remove();
 
-    const actOptions = OUTDOOR_ACTIVITIES.map(a =>
+    const actOptions = getOutdoorActivities().map(a =>
       `<option value="${a.id}">${a.icon} ${a.label}</option>`
     ).join('');
 
@@ -321,7 +375,7 @@ class OutdoorManager {
       </div>
     `;
 
-    let selectedActivity = OUTDOOR_ACTIVITIES[0].id;
+    let selectedActivity = getOutdoorActivities()[0].id;
     let selectedDistKm = 3;
     let selectedProfile = 'foot';
     let selectedPathType = 'mix';
@@ -1138,7 +1192,7 @@ class OutdoorManager {
     overlay.className = 'modal-overlay outdoor-form-overlay';
     overlay.id = 'outdoor-form-overlay';
 
-    const activityOptions = OUTDOOR_ACTIVITIES.map(a =>
+    const activityOptions = getOutdoorActivities().map(a =>
       `<option value="${a.id}" ${session && session.activity === a.id ? 'selected' : ''}>${a.icon} ${a.label}</option>`
     ).join('');
 
@@ -1411,6 +1465,213 @@ class OutdoorManager {
         .bindPopup('Arrivee').addTo(replayMap);
       replayMap.fitBounds(poly.getBounds(), { padding: [20, 20] });
     }, 250);
+  }
+  // ============================================================
+  // ACTIVITIES PAGE: custom catalogue (add / delete)
+  // ============================================================
+
+  /**
+   * Renders the outdoor activities catalogue into `container`.
+   * Shows a "+ Ajouter" button at the top and a 🗑️ delete button on each row.
+   * @param {HTMLElement} container
+   * @param {Function} onChanged - callback after add/delete to refresh the view
+   */
+  renderActivitiesPage(container, onChanged) {
+    container.innerHTML = '';
+
+    const activities = getOutdoorActivities();
+
+    // Header row: "+ Ajouter une activité"
+    const header = document.createElement('div');
+    header.className = 'outdoor-act-header';
+    header.innerHTML = `
+      <button class="btn-primary-sm" id="btn-add-outdoor-activity">+ Ajouter une activite</button>
+    `;
+    container.appendChild(header);
+
+    if (activities.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'empty-state';
+      empty.textContent = 'Aucune activite configuree';
+      container.appendChild(empty);
+    } else {
+      activities.forEach(a => {
+        const item = document.createElement('div');
+        item.className = 'exercise-item outdoor-activity-item';
+        item.innerHTML = `
+          <div class="exercise-item-color" style="background:var(--color-exterieur,#22c55e)"></div>
+          <div class="exercise-item-info">
+            <div class="exercise-item-name">${a.icon} ${a.label}</div>
+            <div class="exercise-item-muscle" style="color:var(--text-muted)">Activite exterieure</div>
+          </div>
+          <button class="btn-icon outdoor-act-delete" title="Supprimer cette activite" data-id="${a.id}">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <polyline points="3 6 5 6 21 6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </button>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Add activity button
+    container.querySelector('#btn-add-outdoor-activity').addEventListener('click', () => {
+      this.showAddActivityModal(onChanged);
+    });
+
+    // Delete buttons
+    container.querySelectorAll('.outdoor-act-delete').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const id = btn.dataset.id;
+        await this._confirmDeleteActivity(id, onChanged);
+      });
+    });
+  }
+
+  /**
+   * Shows the "Add outdoor activity" modal.
+   * @param {Function} onAdded
+   */
+  showAddActivityModal(onAdded) {
+    const existing = document.getElementById('outdoor-add-act-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'outdoor-add-act-overlay';
+    overlay.innerHTML = `
+      <div class="modal">
+        <div class="modal-header">
+          <h3 class="modal-title">Ajouter une activite</h3>
+          <button class="btn-icon" id="oaa-close">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label" for="oaa-name">Nom *</label>
+            <input type="text" id="oaa-name" class="form-input" placeholder="Ex: Trail nocturne" maxlength="50" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="oaa-icon">Icone (emoji)</label>
+            <input type="text" id="oaa-icon" class="form-input outdoor-icon-input" placeholder="🏃" maxlength="4" value="🏃" autocomplete="off">
+            <span class="form-hint">Un seul emoji</span>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn-ghost" id="oaa-cancel">Annuler</button>
+          <button class="btn-primary" id="oaa-save">Enregistrer</button>
+        </div>
+      </div>
+    `;
+
+    overlay.querySelector('#oaa-close').addEventListener('click', () => overlay.remove());
+    overlay.querySelector('#oaa-cancel').addEventListener('click', () => overlay.remove());
+
+    overlay.querySelector('#oaa-save').addEventListener('click', () => {
+      const name = overlay.querySelector('#oaa-name').value.trim();
+      const iconRaw = overlay.querySelector('#oaa-icon').value.trim();
+      const icon = iconRaw || '🏃';
+
+      if (!name) {
+        App.showToast('Le nom est requis', 'error');
+        return;
+      }
+
+      // Build a safe id from the name
+      const id = 'custom_' + name.toLowerCase().replace(/[^a-z0-9]/g, '_') + '_' + Date.now();
+      addOutdoorActivity({ id, label: name, icon });
+      overlay.remove();
+      App.showToast('Activite ajoutee !', 'success');
+      if (onAdded) onAdded();
+    });
+
+    document.body.appendChild(overlay);
+    setTimeout(() => overlay.querySelector('#oaa-name').focus(), 100);
+  }
+
+  /**
+   * Confirms and deletes an outdoor activity.
+   * Checks if the activity is used in the current outdoor program week plan.
+   * @param {string} id
+   * @param {Function} onDeleted
+   */
+  async _confirmDeleteActivity(id, onDeleted) {
+    const activities = getOutdoorActivities();
+    const act = activities.find(a => a.id === id);
+    const label = act ? act.label : id;
+
+    // Check if used in current outdoor program plan
+    let usedInProgram = false;
+    let programDateStr = '';
+    try {
+      const prog = Program.getProgramForCategory('exterieur');
+      if (prog) {
+        for (const week of prog.weeks) {
+          for (const session of week.sessions) {
+            if (session.type === id && !session.completed) {
+              usedInProgram = true;
+              programDateStr = session.date;
+              break;
+            }
+          }
+          if (usedInProgram) break;
+        }
+      }
+    } catch (e) {}
+
+    let confirmMsg = `Supprimer "${label}" ?\n\nVos seances deja enregistrees seront conservees.`;
+    if (usedInProgram) {
+      confirmMsg = `"${label}" est utilisee dans votre programme actif (a partir du ${programDateStr}).\n\nSupprimer quand meme ? L'activite sera retiree du programme automatiquement.`;
+    }
+
+    if (!confirm(confirmMsg)) return;
+
+    // Remove from program if used
+    if (usedInProgram) {
+      try {
+        await this._removeActivityFromProgram(id);
+      } catch (e) {}
+    }
+
+    deleteOutdoorActivity(id);
+    App.showToast('Activite supprimee', 'success');
+    if (onDeleted) onDeleted();
+  }
+
+  /**
+   * Removes all occurrences of an activity type from the active outdoor program.
+   * @param {string} activityId
+   */
+  async _removeActivityFromProgram(activityId) {
+    const prog = Program.getProgramForCategory('exterieur');
+    if (!prog) return;
+
+    const updated = {
+      ...prog,
+      weeks: prog.weeks.map(w => ({
+        ...w,
+        sessions: w.sessions.filter(s => s.type !== activityId)
+      }))
+    };
+
+    // Also update the weeklyPlan stored in the program
+    if (updated.weeklyPlan) {
+      updated.weeklyPlan = updated.weeklyPlan.filter(d => d.type !== activityId);
+    }
+
+    await DB.saveProgram(updated);
+    // Refresh in memory
+    Program._activePrograms['exterieur'] = updated;
+
+    // Also update the custom weekly plan setting if set
+    const rawExt = await DB.getSetting('weeklyPlanCustom_exterieur');
+    if (rawExt) {
+      const plan = JSON.parse(rawExt).filter(d => d.type !== activityId);
+      await DB.setSetting('weeklyPlanCustom_exterieur', JSON.stringify(plan));
+      Program._customWeeklyPlans['exterieur'] = plan;
+    }
   }
 }
 

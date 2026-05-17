@@ -446,7 +446,7 @@ const App = {
       div.innerHTML = `
         <div class="week-day-label">${label}</div>
         <div class="week-day-dot ${isToday ? 'today' : ''} ${isRest ? 'rest' : ''} wdd--${cat}">
-          ${isRest ? '−' : (WORKOUT_TYPE_ICONS[dayPlan.type] || '?')}
+          ${isRest ? '−' : (WORKOUT_TYPE_ICONS[dayPlan.type] || Outdoor.getActivityIcon(dayPlan.type) || '?')}
         </div>
       `;
       container.appendChild(div);
@@ -619,29 +619,19 @@ const App = {
     const list = document.getElementById('exercise-list');
 
     if (cat === 'exterieur') {
-      // Hide filters/search/add for outdoor catalogue, show activities list
+      // Hide filters/search/add — outdoor has its own add button inside the list
       if (filtersEl) filtersEl.style.display = 'none';
-      if (searchEl) searchEl.parentElement && (searchEl.closest('.search-bar') || searchEl.parentElement).style && (searchEl.closest('.search-bar') || searchEl.parentElement).setAttribute('style', 'display:none');
+      const searchBar = searchEl ? (searchEl.closest('.search-bar') || searchEl.parentElement) : null;
+      if (searchBar) searchBar.style.display = 'none';
       if (addBtn) addBtn.style.display = 'none';
       if (list) {
-        list.innerHTML = '';
-        OUTDOOR_ACTIVITIES.forEach(a => {
-          const item = document.createElement('div');
-          item.className = 'exercise-item';
-          item.innerHTML = `
-            <div class="exercise-item-color" style="background:var(--color-exterieur,#22c55e)"></div>
-            <div class="exercise-item-info">
-              <div class="exercise-item-name">${a.icon} ${a.label}</div>
-              <div class="exercise-item-muscle" style="color:var(--text-muted)">Activite exterieure</div>
-            </div>
-          `;
-          list.appendChild(item);
-        });
+        const refresh = () => Outdoor.renderActivitiesPage(list, refresh);
+        refresh();
       }
     } else {
       // Restore for salle/interieur
       if (filtersEl) filtersEl.style.display = '';
-      const searchBar = document.querySelector('.search-bar');
+      const searchBar = searchEl ? (searchEl.closest('.search-bar') || searchEl.parentElement) : null;
       if (searchBar) searchBar.style.display = '';
       if (addBtn) addBtn.style.display = '';
       if (this._renderExerciseList) this._renderExerciseList();
@@ -793,25 +783,7 @@ const App = {
       : cat === 'exterieur'
       ? [
           { v: 'rest', l: '😴 Repos' },
-          { v: 'running', l: '🏃 Course a pied' },
-          { v: 'running_long', l: '🏃 Course longue distance' },
-          { v: 'walk_fast', l: '🚶 Marche rapide' },
-          { v: 'nordic_walk', l: '🥾 Marche nordique' },
-          { v: 'trail', l: '⛰️ Trail' },
-          { v: 'cycling_road', l: '🚴 Velo de route' },
-          { v: 'cycling_mtb', l: '🏔️ VTT' },
-          { v: 'swimming_open', l: '🏊 Natation eau libre' },
-          { v: 'swimming_outdoor', l: '🏊‍♀️ Natation piscine ext.' },
-          { v: 'hiking', l: '🥾 Randonnee' },
-          { v: 'sprint', l: '⚡ Sprint / fractionne' },
-          { v: 'roller', l: '⛸️ Roller' },
-          { v: 'rowing', l: '🚣 Aviron / kayak / canoe' },
-          { v: 'sup', l: '🏄 SUP' },
-          { v: 'climbing_outdoor', l: '🧗 Escalade exterieure' },
-          { v: 'orienteering', l: '🧭 Course d\'orientation' },
-          { v: 'street_workout', l: '🤸 Street workout' },
-          { v: 'boxing_outdoor', l: '🥊 Boxe exterieure' },
-          { v: 'crossfit_outdoor', l: '🔥 Crossfit outdoor' }
+          ...getOutdoorActivities().map(a => ({ v: a.id, l: `${a.icon} ${a.label}` }))
         ]
       : [
           { v: 'upper', l: '💪 Haut du corps' },
