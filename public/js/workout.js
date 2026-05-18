@@ -452,18 +452,23 @@ class WorkoutSession {
     // Compute stats
     const totalSets = this.exercises.reduce((acc, ex) => acc + ex.sets.filter(s => s.completed).length, 0);
     const totalVolume = this.exercises.reduce((acc, ex) =>
-      acc + ex.sets.filter(s => s.completed).reduce((a, s) => a + (s.weight * s.reps), 0), 0);
+      acc + ex.sets.filter(s => s.completed).reduce((a, s) => {
+        // For bodyweight exercises (weight=0), count reps as volume unit
+        return a + (s.weight > 0 ? s.weight * s.reps : s.reps);
+      }, 0), 0);
+    const hasWeight = this.exercises.some(ex => ex.sets.some(s => s.completed && s.weight > 0));
+    const volumeLabel = hasWeight ? 'kg volume' : 'reps total';
     const duration = Math.floor(this.elapsed / 60);
 
     if (d.summarySubtitle) {
-      d.summarySubtitle.textContent = `${duration} min • ${totalSets} series • ${totalVolume.toLocaleString('fr-FR')} kg de volume`;
+      d.summarySubtitle.textContent = `${duration} min • ${totalSets} series • ${Math.round(totalVolume).toLocaleString('fr-FR')} ${hasWeight ? 'kg' : 'reps'}`;
     }
 
     if (d.summaryStats) {
       d.summaryStats.innerHTML = `
         <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-value">${duration}</div><div class="stat-label">minutes</div></div>
         <div class="stat-card"><div class="stat-icon">🔢</div><div class="stat-value">${totalSets}</div><div class="stat-label">series</div></div>
-        <div class="stat-card"><div class="stat-icon">🏋️</div><div class="stat-value">${Math.round(totalVolume)}</div><div class="stat-label">kg volume</div></div>
+        <div class="stat-card"><div class="stat-icon">🏋️</div><div class="stat-value">${Math.round(totalVolume)}</div><div class="stat-label">${volumeLabel}</div></div>
       `;
     }
 

@@ -394,11 +394,20 @@ class StatsManager {
       allSessions = this._filterWorkoutsByCat(cat);
     }
 
+    // Helper: local date string (YYYY-MM-DD) to avoid UTC timezone offset issues
+    const localDateStr = (ts) => {
+      const d = new Date(ts);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    };
+
     let streak = 0;
     const checkDate = new Date(today);
     while (true) {
-      const dayStr = checkDate.toISOString().split('T')[0];
-      const has = allSessions.some(w => new Date(w.date).toISOString().split('T')[0] === dayStr);
+      const dayStr = localDateStr(checkDate.getTime());
+      const has = allSessions.some(w => localDateStr(w.date) === dayStr);
       if (!has) break;
       streak++;
       checkDate.setDate(checkDate.getDate() - 1);
