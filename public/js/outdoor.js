@@ -1085,8 +1085,18 @@ class OutdoorManager {
             </div>
           </form>
         </div>
-        <div class="modal-footer">
+        <div class="modal-footer modal-footer--3col">
           <button class="btn-ghost" id="gps-save-discard">Ignorer</button>
+          <button class="btn-share-outline" id="gps-save-share">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="2"/>
+              <circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+              <circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="2"/>
+              <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+            Partager
+          </button>
           <button class="btn-primary" id="gps-save-confirm">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" stroke="currentColor" stroke-width="2"/><polyline points="17 21 17 13 7 13 7 21" stroke="currentColor" stroke-width="2"/></svg>
             Sauvegarder
@@ -1151,6 +1161,28 @@ class OutdoorManager {
     overlay.querySelector('#gps-save-discard').addEventListener('click', () => {
       overlay.remove();
       App.showToast('Seance ignoree', 'error');
+    });
+
+    // Bouton Partager (avant sauvegarde)
+    overlay.querySelector('#gps-save-share').addEventListener('click', () => {
+      console.log('[OUTDOOR] ShareCard disponible:', typeof window.ShareCard !== 'undefined');
+      const isDark = document.body.classList.contains('theme-dark');
+      const sessionData = {
+        activityLabel: this.getActivityLabel(activity),
+        activityIcon: this.getActivityIcon(activity),
+        distanceKm: distKm,
+        durationMin: durationMin,
+        pace: avgPace,
+        elevationM: elevM > 0 ? elevM : null,
+        date: Date.now(),
+        trace: trace && trace.length > 1 ? trace : null
+      };
+      const SC = window.ShareCard || (typeof ShareCard !== 'undefined' ? ShareCard : null);
+      if (SC) {
+        SC.showShareModal(sessionData, { darkMode: isDark });
+      } else {
+        App.showToast('Partage non disponible. Rechargez la page.', 'error');
+      }
     });
 
     overlay.querySelector('#gps-save-confirm').addEventListener('click', async () => {
@@ -1379,6 +1411,15 @@ class OutdoorManager {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="10" r="3" stroke="currentColor" stroke-width="2"/><path d="M12 2C8.134 2 5 5.134 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.866-3.134-7-7-7z" stroke="currentColor" stroke-width="2"/></svg>
               </button>
             ` : ''}
+            <button class="btn-icon osi-share" title="Partager">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+                <circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="2"/>
+                <circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+                <circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="2"/>
+                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
             <button class="btn-icon osi-edit" title="Modifier">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
             </button>
@@ -1395,6 +1436,28 @@ class OutdoorManager {
           this._showReplayModal(s);
         });
       }
+
+      item.querySelector('.osi-share').addEventListener('click', (e) => {
+        e.stopPropagation();
+        console.log('[OUTDOOR] ShareCard disponible:', typeof window.ShareCard !== 'undefined');
+        const isDark = document.body.classList.contains('theme-dark');
+        const sessionData = {
+          activityLabel: this.getActivityLabel(s.activity),
+          activityIcon: this.getActivityIcon(s.activity),
+          distanceKm: s.distanceKm || null,
+          durationMin: s.durationMin || null,
+          pace: s.pace || null,
+          elevationM: s.elevationM || null,
+          date: s.date,
+          trace: s.trace && s.trace.length > 1 ? s.trace : null
+        };
+        const SC = window.ShareCard || (typeof ShareCard !== 'undefined' ? ShareCard : null);
+        if (SC) {
+          SC.showShareModal(sessionData, { darkMode: isDark });
+        } else {
+          App.showToast('Partage non disponible. Rechargez la page.', 'error');
+        }
+      });
 
       item.querySelector('.osi-edit').addEventListener('click', (e) => {
         e.stopPropagation();
