@@ -1,4 +1,4 @@
-const CACHE_NAME = 'easy-sport-v14';
+const CACHE_NAME = 'easy-sport-v15';
 const BASE_PATH = self.location.pathname.replace(/\/sw\.js$/, '');
 const BASE_WITH_SLASH = BASE_PATH.endsWith('/') ? BASE_PATH : `${BASE_PATH}/`;
 const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
@@ -6,9 +6,9 @@ const toBase = (p) => `${BASE_WITH_SLASH}${p}`;
 // App assets (cache-first)
 const ASSETS = [
   BASE_WITH_SLASH,
-  toBase('index.html?v=11'),
+  toBase('index.html?v=12'),
   toBase('manifest.json?v=5'),
-  toBase('css/style.css?v=11'),
+  toBase('css/style.css?v=12'),
   toBase('js/db.js?v=7'),
   toBase('js/auth.js?v=5'),
   toBase('js/exercises.js?v=5'),
