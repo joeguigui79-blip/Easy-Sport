@@ -929,6 +929,33 @@ img { max-width: 100%; }
 .set-done-btn:active { transform: scale(0.9); }
 .set-done-btn.checked { background: var(--color-success); border-color: var(--color-success); color: white; }
 
+/* Set actions row (add / remove serie) */
+.set-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.btn-set-action {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 11px 14px;
+  font-weight: 600;
+  font-size: var(--font-size-sm);
+  border-radius: var(--radius-xl);
+  transition: transform var(--transition-fast), opacity var(--transition-fast);
+}
+.btn-set-action:active { transform: scale(0.97); }
+.btn-set-remove {
+  background: rgba(239,68,68,0.12);
+  color: var(--color-danger);
+  border: 1px solid rgba(239,68,68,0.25);
+}
+.btn-set-remove:hover { background: rgba(239,68,68,0.18); }
+.btn-set-remove:disabled { opacity: 0.35; pointer-events: none; }
+
 /* Responsive: very narrow screens (Fold 6 folded ~280px, or ≤400px) */
 @media (max-width: 400px) {
   .set-row {

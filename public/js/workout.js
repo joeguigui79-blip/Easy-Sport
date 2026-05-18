@@ -43,6 +43,8 @@ class WorkoutSession {
       btnPrev: document.getElementById('btn-prev-ex'),
       btnNext: document.getElementById('btn-next-ex'),
       btnAddSet: document.getElementById('btn-add-set'),
+      btnRemoveSet: document.getElementById('btn-remove-set'),
+      btnExInfo: document.getElementById('btn-ex-info'),
       btnFinish: document.getElementById('btn-finish-workout'),
       btnSkipRest: document.getElementById('btn-skip-rest'),
       btnSaveWorkout: document.getElementById('btn-save-workout'),
@@ -79,6 +81,8 @@ class WorkoutSession {
     if (d.btnPrev) d.btnPrev.addEventListener('click', () => this.goTo(this.currentIndex - 1));
     if (d.btnNext) d.btnNext.addEventListener('click', () => this.goTo(this.currentIndex + 1));
     if (d.btnAddSet) d.btnAddSet.addEventListener('click', () => this._addSet());
+    if (d.btnRemoveSet) d.btnRemoveSet.addEventListener('click', () => this._removeSet());
+    if (d.btnExInfo) d.btnExInfo.addEventListener('click', () => this._showExInfo());
     if (d.btnFinish) d.btnFinish.addEventListener('click', () => this._showSummary());
     if (d.btnSkipRest) d.btnSkipRest.addEventListener('click', () => this._stopRestTimer());
     if (d.btnSaveWorkout) d.btnSaveWorkout.addEventListener('click', () => this._saveWorkout());
@@ -173,6 +177,7 @@ class WorkoutSession {
         exerciseName: ex.name,
         muscle: ex.muscle,
         type: ex.type,
+        notes: ex.notes || '',
         restTime: Exercises.getRestTime(ex),
         targetReps: ex.defaultReps,
         sets
@@ -228,6 +233,16 @@ class WorkoutSession {
     // Nav buttons
     if (d.btnPrev) d.btnPrev.disabled = this.currentIndex === 0;
     if (d.btnNext) d.btnNext.disabled = this.currentIndex === this.exercises.length - 1;
+
+    // Remove-set button: disabled when only 1 serie left
+    if (d.btnRemoveSet) d.btnRemoveSet.disabled = ex.sets.length <= 1;
+
+    // Info button: dim when no notes
+    if (d.btnExInfo) {
+      const hasNotes = !!(ex.notes && ex.notes.trim());
+      d.btnExInfo.style.opacity = hasNotes ? '' : '0.35';
+      d.btnExInfo.style.pointerEvents = hasNotes ? '' : 'none';
+    }
 
     // Dots
     this._renderDots();
@@ -389,7 +404,55 @@ class WorkoutSession {
       targetReps: lastSet ? lastSet.reps : 10,
       completed: false
     });
+    if (this._dom.btnRemoveSet) this._dom.btnRemoveSet.disabled = false;
     this._renderSets();
+  }
+
+  _removeSet() {
+    this._syncInputValues();
+    const ex = this.exercises[this.currentIndex];
+    if (!ex || ex.sets.length <= 1) return;
+    ex.sets.pop();
+    if (this._dom.btnRemoveSet) this._dom.btnRemoveSet.disabled = ex.sets.length <= 1;
+    this._renderSets();
+  }
+
+  _showExInfo() {
+    const ex = this.exercises[this.currentIndex];
+    if (!ex) return;
+    const notes = ex.notes && ex.notes.trim();
+    if (!notes) {
+      App.showToast('Aucune info pour cet exercice', 'info');
+      return;
+    }
+    // Show a simple modal/bottom-sheet with notes
+    let modal = document.getElementById('ex-info-modal');
+    if (!modal) {
+      modal = document.createElement('div');
+      modal.id = 'ex-info-modal';
+      modal.className = 'modal-overlay';
+      modal.innerHTML = `
+        <div class="modal">
+          <div class="modal-header">
+            <h3 id="ex-info-modal-title" class="modal-title">Info exercice</h3>
+            <button class="btn-icon modal-close" id="ex-info-modal-close" aria-label="Fermer">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+          <div id="ex-info-modal-body" style="padding:0 16px 24px;font-size:15px;line-height:1.6;color:var(--text-secondary)"></div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+      document.getElementById('ex-info-modal-close').addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+      modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+      });
+    }
+    document.getElementById('ex-info-modal-title').textContent = ex.exerciseName;
+    document.getElementById('ex-info-modal-body').textContent = notes;
+    modal.classList.remove('hidden');
   }
 
   goTo(index) {
