@@ -298,6 +298,12 @@ class WorkoutSession {
       });
 
       row.querySelectorAll('input[data-field]').forEach(inp => {
+        inp.addEventListener('input', (e) => {
+          const idx = parseInt(inp.dataset.si);
+          const field = inp.dataset.field;
+          const val = parseFloat(e.target.value) || 0;
+          ex.sets[idx][field] = val;
+        });
         inp.addEventListener('change', (e) => {
           const idx = parseInt(inp.dataset.si);
           const field = inp.dataset.field;
@@ -316,7 +322,23 @@ class WorkoutSession {
     });
   }
 
+  _syncInputValues() {
+    const d = this._dom;
+    if (!d.setsContainer) return;
+    const ex = this.exercises[this.currentIndex];
+    if (!ex) return;
+    d.setsContainer.querySelectorAll('input[data-field]').forEach(inp => {
+      const idx = parseInt(inp.dataset.si);
+      const field = inp.dataset.field;
+      if (!isNaN(idx) && ex.sets[idx]) {
+        const val = parseFloat(inp.value) || 0;
+        ex.sets[idx][field] = val;
+      }
+    });
+  }
+
   _adjustSet(si, action) {
+    this._syncInputValues();
     const ex = this.exercises[this.currentIndex];
     if (!ex || !ex.sets[si]) return;
     const set = ex.sets[si];
@@ -331,6 +353,7 @@ class WorkoutSession {
   }
 
   _toggleSetDone(si) {
+    this._syncInputValues();
     const ex = this.exercises[this.currentIndex];
     if (!ex || !ex.sets[si]) return;
     const wasCompleted = ex.sets[si].completed;
@@ -352,6 +375,7 @@ class WorkoutSession {
   }
 
   _addSet() {
+    this._syncInputValues();
     const ex = this.exercises[this.currentIndex];
     if (!ex) return;
     const lastSet = ex.sets[ex.sets.length - 1];
@@ -366,6 +390,7 @@ class WorkoutSession {
   }
 
   goTo(index) {
+    this._syncInputValues();
     if (index < 0 || index >= this.exercises.length) return;
     this._stopRestTimer();
     this.currentIndex = index;
@@ -414,6 +439,7 @@ class WorkoutSession {
   }
 
   _showSummary() {
+    this._syncInputValues();
     clearInterval(this.elapsedTimer);
     this._stopRestTimer();
     this.active = false;
