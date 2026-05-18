@@ -182,6 +182,7 @@ class WorkoutSession {
     this.currentIndex = 0;
     this.active = true;
     this.startTime = Date.now();
+    console.log('[DEBUG TEMP][WORKOUT] _launch: type=', this.workoutType, 'exercises=', this.exercises.length, 'startTime=', this.startTime, 'sets[0]=', this.exercises[0] ? JSON.stringify(this.exercises[0].sets) : 'none');
 
     // Show active workout UI
     this._dom.workoutSelect.classList.add('hidden');
@@ -335,6 +336,7 @@ class WorkoutSession {
         ex.sets[idx][field] = val;
       }
     });
+    console.log('[DEBUG TEMP][WORKOUT] _syncInputValues exIdx=', this.currentIndex, 'sets=', JSON.stringify(ex.sets));
   }
 
   _adjustSet(si, action) {
@@ -358,6 +360,7 @@ class WorkoutSession {
     if (!ex || !ex.sets[si]) return;
     const wasCompleted = ex.sets[si].completed;
     ex.sets[si].completed = !wasCompleted;
+    console.log('[DEBUG TEMP][WORKOUT] _toggleSetDone exIdx=', this.currentIndex, 'setIdx=', si, 'completed=', ex.sets[si].completed, 'weight=', ex.sets[si].weight, 'reps=', ex.sets[si].reps);
 
     if (!wasCompleted) {
       // Start rest timer if not last set
@@ -458,15 +461,25 @@ class WorkoutSession {
       }, 0), 0);
     const hasWeight = this.exercises.some(ex => ex.sets.some(s => s.completed && s.weight > 0));
     const volumeLabel = hasWeight ? 'kg volume' : 'reps total';
-    const duration = Math.floor(this.elapsed / 60);
+    // FIX: pour les seances < 60s, afficher au moins 1 min ou les secondes brutes
+    const duration = this.elapsed >= 60 ? Math.floor(this.elapsed / 60) : (this.elapsed > 0 ? 1 : 0);
+    const durationLabel = this.elapsed > 0 && this.elapsed < 60 ? '< 1' : String(duration);
+
+    console.log('[DEBUG TEMP][WORKOUT] _showSummary', {
+      elapsed: this.elapsed,
+      duration,
+      totalSets,
+      totalVolume,
+      exercises: this.exercises.map(e => ({ name: e.exerciseName, sets: e.sets.map(s => ({ completed: s.completed, weight: s.weight, reps: s.reps })) }))
+    });
 
     if (d.summarySubtitle) {
-      d.summarySubtitle.textContent = `${duration} min • ${totalSets} series • ${Math.round(totalVolume).toLocaleString('fr-FR')} ${hasWeight ? 'kg' : 'reps'}`;
+      d.summarySubtitle.textContent = `${durationLabel} min • ${totalSets} series • ${Math.round(totalVolume).toLocaleString('fr-FR')} ${hasWeight ? 'kg' : 'reps'}`;
     }
 
     if (d.summaryStats) {
       d.summaryStats.innerHTML = `
-        <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-value">${duration}</div><div class="stat-label">minutes</div></div>
+        <div class="stat-card"><div class="stat-icon">⏱️</div><div class="stat-value">${durationLabel}</div><div class="stat-label">minutes</div></div>
         <div class="stat-card"><div class="stat-icon">🔢</div><div class="stat-value">${totalSets}</div><div class="stat-label">series</div></div>
         <div class="stat-card"><div class="stat-icon">🏋️</div><div class="stat-value">${Math.round(totalVolume)}</div><div class="stat-label">${volumeLabel}</div></div>
       `;
@@ -505,6 +518,7 @@ class WorkoutSession {
         sets: ex.sets.filter(s => s.completed)
       }))
     };
+    console.log('[DEBUG TEMP][WORKOUT] _saveWorkout', JSON.stringify(workout));
 
     try {
       await DB.addWorkout(workout);
