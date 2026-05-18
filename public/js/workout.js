@@ -61,6 +61,27 @@ class WorkoutSession {
 
     this._bindEvents();
     this._renderDayInfo();
+    this._initRestSetting();
+  }
+
+  _initRestSetting() {
+    const input = document.getElementById('input-rest-duration');
+    if (!input) return;
+    // Load saved value
+    const saved = parseInt(localStorage.getItem('easy-sport-rest-duration'));
+    if (!isNaN(saved) && saved >= 10 && saved <= 600) {
+      input.value = saved;
+    }
+    // Save on change
+    input.addEventListener('change', () => {
+      const val = parseInt(input.value);
+      if (!isNaN(val) && val >= 10 && val <= 600) {
+        localStorage.setItem('easy-sport-rest-duration', val);
+      } else {
+        input.value = 90;
+        localStorage.removeItem('easy-sport-rest-duration');
+      }
+    });
   }
 
   _bindEvents() {
@@ -271,6 +292,9 @@ class WorkoutSession {
 
     d.setsContainer.innerHTML = '';
 
+    // Find first non-completed set index for pulse animation
+    const firstActiveIdx = ex.sets.findIndex(s => !s.completed);
+
     ex.sets.forEach((set, si) => {
       const row = document.createElement('div');
       row.className = 'set-row' + (set.completed ? ' completed' : '');
@@ -299,7 +323,7 @@ class WorkoutSession {
             <button class="set-adjust-btn" data-action="reps-up" data-si="${si}">+</button>
           </div>
         </div>
-        <button class="set-done-btn ${set.completed ? 'checked' : ''}" data-si="${si}" aria-label="Serie validee">
+        <button class="set-done-btn ${set.completed ? 'checked' : (si === firstActiveIdx ? 'validate-pulse' : '')}" data-si="${si}" aria-label="Serie validee">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
         </button>
       `;
@@ -465,8 +489,11 @@ class WorkoutSession {
 
   _startRestTimer(seconds) {
     if (seconds <= 0) return;
-    this.restDuration = seconds;
-    this.restRemaining = seconds;
+    // Read custom rest duration from localStorage (fallback to provided seconds)
+    const customRest = parseInt(localStorage.getItem('easy-sport-rest-duration'));
+    const duration = (!isNaN(customRest) && customRest >= 10 && customRest <= 600) ? customRest : seconds;
+    this.restDuration = duration;
+    this.restRemaining = duration;
     this._dom.restOverlay.classList.remove('hidden');
     this._updateRestTimer();
 
@@ -557,7 +584,17 @@ class WorkoutSession {
         row.className = 'summary-set-row';
         row.innerHTML = `
           <span class="summary-set-name">${ex.exerciseName}</span>
-          <span class="summary-set-val">${completedSets.length} × ${completedSets.map(s => `${s.reps}${s.weight > 0 ? '@' + s.weight + 'kg' : ''}`).join(' | ')}</span>
+          <span class="summary-set-val">${(() => {
+            // Group sets by reps+weight and format as NxRepsxWeightKg
+            const groups = [];
+            completedSets.forEach(s => {
+              const key = s.reps + '_' + s.weight;
+              const g = groups.find(x => x.key === key);
+              if (g) g.count++;
+              else groups.push({ key, count: 1, reps: s.reps, weight: s.weight });
+            });
+            return groups.map(g => `${g.count}x${g.reps}${g.weight > 0 ? 'x' + g.weight + 'Kg' : ''}`).join(' | ');
+          })()}</span>
         `;
         d.summarySets.appendChild(row);
       });

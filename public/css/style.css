@@ -723,6 +723,42 @@ img { max-width: 100%; }
   color: var(--text-secondary);
 }
 
+/* Rest duration setting row */
+.rest-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  padding: 10px 14px;
+  margin-bottom: var(--space-md);
+  gap: 12px;
+}
+.rest-setting-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  flex: 1;
+}
+.rest-setting-input {
+  width: 70px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: var(--font-size-base);
+  font-weight: 700;
+  padding: 6px 10px;
+  text-align: center;
+}
+.rest-setting-input:focus {
+  outline: none;
+  border-color: var(--color-primary);
+}
+
 .workout-type-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -928,6 +964,17 @@ img { max-width: 100%; }
 }
 .set-done-btn:active { transform: scale(0.9); }
 .set-done-btn.checked { background: var(--color-success); border-color: var(--color-success); color: white; }
+
+/* Pulse animation on the next-to-validate set button */
+.set-done-btn.validate-pulse {
+  animation: validatePulse 1.2s ease-in-out infinite;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+@keyframes validatePulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(224, 64, 251, 0.4); }
+  50% { transform: scale(1.12); box-shadow: 0 0 0 6px rgba(224, 64, 251, 0); }
+}
 
 /* Set actions row (add / remove serie) */
 .set-actions-row {
