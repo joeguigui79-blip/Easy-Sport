@@ -102,6 +102,7 @@ class WorkoutSession {
   _renderDayInfo() {
     const d = this._dom;
     if (!d.dayInfo) return;
+    // Always read the current activeCategory at render time, never cache from init()
     const cat = (typeof App !== 'undefined' && App.activeCategory) ? App.activeCategory : 'salle';
     const todayType = Program.getTodayType(cat);
     const days = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];

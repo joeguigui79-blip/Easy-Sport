@@ -227,8 +227,9 @@ const App = {
         this._renderWorkoutTypesForCategory('interieur');
       } else {
         this.setHeader('Seance', !Workout.active);
-        this._renderWorkoutTypesForCategory('salle');
+        this._renderWorkoutTypesForCategory(cat);
       }
+      Workout._renderDayInfo();
     } else if (page === 'outdoor') {
       this.setHeader('🏃 Sport exterieur', false);
       this.loadOutdoorPage();
